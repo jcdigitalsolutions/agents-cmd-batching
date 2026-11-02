@@ -1,0 +1,530 @@
+#!/usr/bin/env python3
+"""Run explicitly supplied shell commands after a bounded delay.
+
+Each positional argument is one shell command. The command strings are passed
+to the platform shell exactly once; this tool does not use ``eval``.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import threading
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable, Sequence
+
+DEFAULT_INITIAL_DELAY = 5.0
+DEFAULT_QUIET_WINDOW = 30.0
+DEFAULT_QUIET_TIMEOUT = 60.0
+DEFAULT_POLL_INTERVAL = 1.0
+DEFAULT_TIMEOUT = 900.0
+TERMINATION_GRACE_SECONDS = 1.0
+EXIT_TIMEOUT = 124
+IGNORED_PARTS = {
+    ".benchmark",
+    ".benchmark-bin",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".testing-toolkit",
+    "__pycache__",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "target",
+}
+
+
+class WrapperError(RuntimeError):
+    """A deterministic invocation or source-path error."""
+
+
+@dataclass(frozen=True)
+class SequenceConfig:
+    cwd: Path
+    initial_delay: float = DEFAULT_INITIAL_DELAY
+    quiet_window: float = DEFAULT_QUIET_WINDOW
+    quiet_timeout: float = DEFAULT_QUIET_TIMEOUT
+    poll_interval: float = DEFAULT_POLL_INTERVAL
+    timeout: float = DEFAULT_TIMEOUT
+    quiet_paths: tuple[str, ...] = ()
+    dry_run: bool = False
+
+    def validate(self) -> None:
+        values = {
+            "initial-delay": self.initial_delay,
+            "quiet-window": self.quiet_window,
+            "quiet-timeout": self.quiet_timeout,
+            "poll-interval": self.poll_interval,
+            "timeout": self.timeout,
+        }
+        for name, value in values.items():
+            if not math.isfinite(value):
+                raise WrapperError(f"{name} must be finite")
+            if value < 0:
+                raise WrapperError(f"{name} cannot be negative")
+        if self.poll_interval <= 0:
+            raise WrapperError("poll-interval must be positive")
+        if self.timeout <= 0:
+            raise WrapperError("timeout must be positive")
+        if not self.cwd.is_dir():
+            raise WrapperError(f"working directory does not exist: {self.cwd}")
+
+
+@dataclass
+class SequenceResult:
+    exit_code: int
+    executed: int = 0
+    state: str = "failed"
+    failed_command_index: int | None = None
+    error: str | None = None
+    quiet_wait_ms: int | None = None
+
+
+@dataclass
+class _SourceState:
+    root: Path
+    files: tuple[Path, ...]
+
+    def signature(self) -> tuple[tuple[str, int, int], ...]:
+        values: list[tuple[str, int, int]] = []
+        for path in self.files:
+            try:
+                stat = path.stat()
+            except FileNotFoundError:
+                continue
+            values.append(
+                (
+                    path.relative_to(self.root).as_posix(),
+                    stat.st_mtime_ns,
+                    stat.st_size,
+                )
+            )
+        return tuple(values)
+
+
+@dataclass
+class ShellCommandRunner:
+    """Execute one shell command while forwarding cancellation and signals."""
+
+    cwd: Path
+    cancellation: threading.Event
+    signal_number: int | None = None
+    _process: subprocess.Popen[bytes] | None = field(default=None, init=False)
+
+    def cancel(self, signum: int) -> None:
+        self.signal_number = signum
+        self.cancellation.set()
+        self.forward_signal(signum)
+
+    def forward_signal(self, signum: int) -> None:
+        process = self._process
+        if process is None or process.poll() is not None:
+            return
+        try:
+            if os.name == "posix":
+                os.killpg(process.pid, signum)
+            else:
+                process.send_signal(signum)
+        except ProcessLookupError:
+            pass
+
+    def run(self, command: str, timeout: float) -> int:
+        if self.cancellation.is_set():
+            return 128 + (self.signal_number or signal.SIGINT)
+        shell = shutil.which("sh")
+        if shell is None:
+            raise WrapperError("a POSIX-compatible shell is not available")
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=self.cwd,
+                shell=True,
+                executable=shell,
+                stdin=subprocess.DEVNULL,
+                start_new_session=os.name == "posix",
+            )
+        except OSError as exc:
+            raise WrapperError(f"cannot start command: {exc}") from exc
+        self._process = process
+        deadline = time.monotonic() + timeout
+        try:
+            while process.poll() is None:
+                if self.cancellation.is_set():
+                    signum = self.signal_number or signal.SIGTERM
+                    self.forward_signal(signum)
+                    return self._finish_after_signal(process, signum)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    self._terminate(process)
+                    return EXIT_TIMEOUT
+                try:
+                    return process.wait(timeout=min(0.1, remaining))
+                except subprocess.TimeoutExpired:
+                    continue
+            returncode = process.returncode
+            if returncode is None:
+                return 1
+            return returncode if returncode >= 0 else 128 - returncode
+        finally:
+            self._process = None
+
+    def _finish_after_signal(
+        self,
+        process: subprocess.Popen[bytes],
+        signum: int,
+    ) -> int:
+        try:
+            process.wait(timeout=TERMINATION_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            self._terminate(process, signum=signal.SIGKILL)
+        return 128 + signum
+
+    def _terminate(
+        self,
+        process: subprocess.Popen[bytes],
+        *,
+        signum: int = signal.SIGTERM,
+    ) -> None:
+        try:
+            if os.name == "posix":
+                os.killpg(process.pid, signum)
+            else:
+                process.terminate()
+        except ProcessLookupError:
+            return
+        try:
+            process.wait(timeout=TERMINATION_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            try:
+                if os.name == "posix":
+                    os.killpg(process.pid, signal.SIGKILL)
+                else:
+                    process.kill()
+            except ProcessLookupError:
+                pass
+            process.wait()
+
+
+def _resolve_quiet_paths(cwd: Path, values: Sequence[str]) -> _SourceState:
+    root = cwd.resolve(strict=True)
+    files: set[Path] = set()
+    for value in values:
+        raw = Path(value)
+        if ".." in raw.parts:
+            raise WrapperError(f"quiet path escapes the workspace: {value}")
+        if raw.is_absolute():
+            lexical = Path(os.path.abspath(raw))
+        else:
+            lexical = Path(os.path.abspath(root / raw))
+        try:
+            lexical_relative = lexical.relative_to(root)
+        except ValueError as exc:
+            raise WrapperError(f"quiet path escapes the workspace: {value}") from exc
+        current = root
+        for part in lexical_relative.parts:
+            current = current / part
+            if current.is_symlink():
+                raise WrapperError(f"symlink quiet paths are not supported: {value}")
+        candidate = lexical.resolve(strict=False)
+        try:
+            candidate.relative_to(root)
+        except ValueError as exc:
+            raise WrapperError(f"quiet path escapes the workspace: {value}") from exc
+        if not candidate.exists():
+            raise WrapperError(f"quiet path does not exist: {value}")
+        if candidate.is_file():
+            relative_path = candidate.relative_to(root)
+            if IGNORED_PARTS.intersection(relative_path.parts):
+                continue
+            files.add(candidate)
+            continue
+        for path in candidate.rglob("*"):
+            if path.is_symlink():
+                raise WrapperError(f"symlink quiet paths are not supported: {path}")
+            relative_path = path.relative_to(root)
+            if (
+                path.is_file()
+                and not IGNORED_PARTS.intersection(relative_path.parts)
+            ):
+                files.add(path)
+    if not files:
+        raise WrapperError("quiet paths contain no source files")
+    return _SourceState(root=root, files=tuple(sorted(files)))
+
+
+def wait_for_source_quiet(
+    state: _SourceState,
+    *,
+    quiet_window: float,
+    quiet_timeout: float,
+    poll_interval: float,
+    monotonic: Callable[[], float],
+    wall_clock: Callable[[], float],
+    sleeper: Callable[[float], None],
+    cancellation: threading.Event,
+) -> tuple[bool, int]:
+    if quiet_window == 0:
+        return True, 0
+    started = monotonic()
+    deadline = started + quiet_timeout
+    quiet_started = wall_clock()
+    previous = state.signature()
+    while True:
+        if cancellation.is_set():
+            return False, round((monotonic() - started) * 1000)
+        now_wall = wall_clock()
+        current = state.signature()
+        if current != previous:
+            quiet_started = now_wall
+            previous = current
+        stable_for = now_wall - quiet_started
+        now = monotonic()
+        if stable_for >= quiet_window:
+            return True, round((now - started) * 1000)
+        if now >= deadline:
+            return False, round((now - started) * 1000)
+        sleeper(
+            max(
+                0.0,
+                min(
+                    poll_interval,
+                    quiet_window - stable_for,
+                    deadline - now,
+                ),
+            )
+        )
+
+
+def run_sequence(
+    commands: Sequence[str],
+    config: SequenceConfig,
+    *,
+    command_runner: Callable[[str, float], int],
+    cancellation: threading.Event | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
+    wall_clock: Callable[[], float] = time.time,
+    sleeper: Callable[[float], None] = time.sleep,
+    waiter: Callable[[float], bool] | None = None,
+    emit: Callable[[str], None] | None = None,
+) -> SequenceResult:
+    config.validate()
+    if not commands:
+        raise WrapperError("at least one command is required")
+    for index, command in enumerate(commands, start=1):
+        if not command.strip():
+            raise WrapperError(f"command {index} is empty")
+        if "\x00" in command:
+            raise WrapperError(f"command {index} contains a NUL byte")
+    event = cancellation or threading.Event()
+    output = emit or (lambda message: print(message, file=sys.stderr, flush=True))
+    wait = waiter or event.wait
+    started = monotonic()
+    deadline = started + config.timeout
+
+    remaining = deadline - monotonic()
+    if config.initial_delay > 0:
+        output(f"[delayed-seq] initial delay: {config.initial_delay:g}s")
+        if wait(min(config.initial_delay, max(0.0, remaining))):
+            return SequenceResult(
+                exit_code=130,
+                state="cancelled",
+                error="cancelled during initial delay",
+            )
+    if monotonic() >= deadline:
+        return SequenceResult(
+            exit_code=EXIT_TIMEOUT,
+            state="timed_out",
+            error="deadline expired during initial delay",
+        )
+
+    quiet_wait_ms: int | None = None
+    if config.quiet_paths:
+        state = _resolve_quiet_paths(config.cwd, config.quiet_paths)
+        output(
+            "[delayed-seq] waiting for "
+            f"{config.quiet_window:g}s of source quiet; this is not patch proof"
+        )
+        quiet, quiet_wait_ms = wait_for_source_quiet(
+            state,
+            quiet_window=config.quiet_window,
+            quiet_timeout=min(
+                config.quiet_timeout,
+                max(0.0, deadline - monotonic()),
+            ),
+            poll_interval=config.poll_interval,
+            monotonic=monotonic,
+            wall_clock=wall_clock,
+            sleeper=sleeper,
+            cancellation=event,
+        )
+        if event.is_set():
+            return SequenceResult(
+                exit_code=130,
+                state="cancelled",
+                error="cancelled while waiting for source quiet",
+                quiet_wait_ms=quiet_wait_ms,
+            )
+        if not quiet:
+            timed_out = monotonic() >= deadline
+            return SequenceResult(
+                exit_code=EXIT_TIMEOUT,
+                state="timed_out" if timed_out else "failed",
+                error="source quiet window was not reached",
+                quiet_wait_ms=quiet_wait_ms,
+            )
+        output(f"[delayed-seq] source quiet reached ({quiet_wait_ms}ms)")
+
+    for index, command in enumerate(commands, start=1):
+        prefix = f"[delayed-seq] command {index}/{len(commands)}"
+        if config.dry_run:
+            output(
+                json.dumps(
+                    {
+                        "event": "dry-run",
+                        "index": index,
+                        "command": command,
+                    },
+                    sort_keys=True,
+                )
+            )
+            continue
+        output(f"{prefix}: running")
+        remaining = deadline - monotonic()
+        if remaining <= 0 or wait(0):
+            return SequenceResult(
+                exit_code=EXIT_TIMEOUT if not event.is_set() else 130,
+                executed=index - 1,
+                state="timed_out" if not event.is_set() else "cancelled",
+                error="deadline expired before command",
+                quiet_wait_ms=quiet_wait_ms,
+            )
+        exit_code = command_runner(command, remaining)
+        if exit_code != 0:
+            output(f"{prefix}: failed with status {exit_code}")
+            return SequenceResult(
+                exit_code=exit_code,
+                executed=index,
+                state="cancelled" if event.is_set() else "failed",
+                failed_command_index=index,
+                error=f"command {index} failed",
+                quiet_wait_ms=quiet_wait_ms,
+            )
+        output(f"{prefix}: succeeded")
+    output(f"[delayed-seq] completed: {len(commands)} command(s)")
+    return SequenceResult(
+        exit_code=0,
+        executed=len(commands),
+        state="succeeded",
+        quiet_wait_ms=quiet_wait_ms,
+    )
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--initial-delay",
+        type=float,
+        default=DEFAULT_INITIAL_DELAY,
+        help="seconds to wait before execution (default: 5)",
+    )
+    parser.add_argument(
+        "--quiet-path",
+        "--quiet",
+        dest="quiet_paths",
+        action="append",
+        default=[],
+        help="workspace-relative source path for an optional trailing quiet wait",
+    )
+    parser.add_argument(
+        "--quiet-window",
+        type=float,
+        default=DEFAULT_QUIET_WINDOW,
+        help="required source-quiet seconds (default: 30)",
+    )
+    parser.add_argument(
+        "--quiet-timeout",
+        type=float,
+        default=DEFAULT_QUIET_TIMEOUT,
+        help="bounded source-quiet deadline in seconds (default: 60)",
+    )
+    parser.add_argument(
+        "--poll-interval",
+        type=float,
+        default=DEFAULT_POLL_INTERVAL,
+        help="source-quiet polling interval (default: 1)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT,
+        help="total wrapper deadline in seconds (default: 900)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="validate timing and print commands without executing them",
+    )
+    parser.add_argument(
+        "commands",
+        nargs="+",
+        metavar="COMMAND",
+        help="one explicitly shell-interpreted command per positional argument",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    cancellation = threading.Event()
+    runner = ShellCommandRunner(
+        cwd=Path.cwd().resolve(strict=True),
+        cancellation=cancellation,
+    )
+    original_handlers: dict[int, signal.Handlers] = {}
+
+    def handle_signal(signum: int, _frame: object) -> None:
+        runner.cancel(signum)
+
+    for signum in (signal.SIGINT, signal.SIGTERM):
+        original_handlers[signum] = signal.getsignal(signum)
+        signal.signal(signum, handle_signal)
+    try:
+        result = run_sequence(
+            args.commands,
+            SequenceConfig(
+                cwd=runner.cwd,
+                initial_delay=args.initial_delay,
+                quiet_window=args.quiet_window,
+                quiet_timeout=args.quiet_timeout,
+                poll_interval=args.poll_interval,
+                timeout=args.timeout,
+                quiet_paths=tuple(args.quiet_paths),
+                dry_run=args.dry_run,
+            ),
+            command_runner=runner.run,
+            cancellation=cancellation,
+        )
+        if cancellation.is_set() and runner.signal_number is not None:
+            return 128 + runner.signal_number
+        return result.exit_code
+    except WrapperError as exc:
+        print(f"delayed-seq: {exc}", file=sys.stderr)
+        return 2
+    finally:
+        for signum, handler in original_handlers.items():
+            signal.signal(signum, handler)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
