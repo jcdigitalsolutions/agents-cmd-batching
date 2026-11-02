@@ -1,0 +1,84 @@
+# Agent Command Batching
+
+A small, language-independent command-batching setup for AI coding agents: **one executable** plus **one paragraph of agent instructions**.
+
+The executable `delayed-seq` runs a known sequence of shell commands in order, stops on the first failure, and reports command status. The `AGENTS_APPEND.md` paragraph instructs an agent to use it only when no new model decision is needed between commands.
+
+This public repository contains the original benchmarked wrapper and selection paragraph; the original research and local benchmark infrastructure are not included. See [REPORT.md](REPORT.md) for results and limitations.
+
+## Requirements
+
+- Python 3 (standard library only)
+- A POSIX-compatible `sh` available in `PATH` (Linux/macOS or an appropriate Unix-like environment)
+- An AI coding agent that reads `AGENTS.md` (or equivalent guidance)
+
+The executable intentionally accepts **shell command strings**; only execute commands you trust. It is not a sandbox, security boundary, or patch-completion detector.
+
+## Install the executable
+
+Clone this repository and install the wrapper into a directory in your shell `PATH`:
+
+```sh
+git clone https://github.com/jcdigitalsolutions/agents-cmd-batching.git
+cd agents-cmd-batching
+mkdir -p "$HOME/.local/bin"
+cp delayed-seq "$HOME/.local/bin/delayed-seq"
+chmod 755 "$HOME/.local/bin/delayed-seq"
+export PATH="$HOME/.local/bin:$PATH"
+command -v delayed-seq
+```
+
+Make that `PATH` change persistent in your shell configuration if needed. Ensure the *agent's execution environment* also inherits it. Alternatively, use the absolute executable path in your guidance/commands.
+
+The Python source is copied without runtime dependencies or a compilation step.
+
+## Add the agent guidance
+
+Open [AGENTS_APPEND.md](AGENTS_APPEND.md) and append **only its instruction paragraph** (the paragraph after the introductory heading) to the end of your existing project `AGENTS.md`. This avoids overwriting unrelated rules. For a global default, add the same paragraph to your agent's global instructions if that agent supports them.
+
+The exact tested paragraph is:
+
+> When two or more shell commands are already known and can execute consecutively without further model decisions, use `delayed-seq -- 'command 1' 'command 2'`. Sequential dependencies such as formatting before testing are valid: the wrapper executes commands in order and stops on failure. Use ordinary commands for single operations, initial exploration, or when the next command requires interpreting the previous result. Do not generate custom delay, polling, or sequencing Bash. Preserve required validation and never assume incomplete edits succeeded.
+
+Do not assume that copying the full research repository's `AGENTS.md` is necessary; that file contains unrelated testing-toolkit instructions.
+
+## Usage
+
+Each argument after `--` is **one complete shell command**. Quote each command as a single argument:
+
+```sh
+delayed-seq -- 'cargo fmt --check' 'cargo test --offline'
+delayed-seq -- 'gofmt -w file.go' 'go test -count=1 ./...'
+delayed-seq -- 'python -m pytest -q' 'python -m compileall -q src'
+delayed-seq -- 'npm run typecheck' 'npm test'
+```
+
+The wrapper waits **5 seconds by default** before running the first command. It executes commands sequentially and stops if any command returns a nonzero status. The total default deadline is 900 seconds, including the initial wait. Long-running suites can use `--timeout`:
+
+```sh
+delayed-seq --initial-delay 0 --timeout 1800 -- 'cargo test --offline' 'cargo clippy --all-targets'
+```
+
+`--initial-delay 0` overrides the default and is a choice for your environment; the benchmarked default used 5 seconds.
+
+To inspect without executing the commands:
+
+```sh
+delayed-seq --initial-delay 0 --dry-run -- 'python -m pytest -q' 'echo done'
+```
+
+Optional source quiet checks: `--quiet-path src --quiet-window 30 --quiet-timeout 60`. This checks for an unchanged observed set of files; **it does not prove that edits completed successfully**. Start validation only after the editing operation has explicitly succeeded.
+
+## When agents should use it
+
+Use `delayed-seq` for two or more already-known commands when the next command needs only successful completion of the previous one. Formatting → tests → linting is a typical case. Do not use it for single commands, first-pass repository exploration, or debugging steps where the next action depends on interpreting output.
+
+Never bypass required checks, suppress failures, or queue validation behind an unfinished patch.
+
+## Research
+
+[REPORT.md](REPORT.md) summarizes the 72-run Go/Rust and 216-run Python/TypeScript/JavaScript comparisons (288 assignments total). These are descriptive studies rather than proof of universal cost savings, speed gains, or code-quality equivalence. Raw artifacts and private environments are deliberately not published in this repository.
+
+## Source attribution
+
+`delayed-seq` and the selection paragraph were copied from `jcdigitalsolutions/testing-toolkit` as of its public-release preparation on 2026-11-02. The executable is unchanged from `scripts/delayed_seq.py` and the instruction comes from `WRAPPER_SELECTION_INSTRUCTION` in `python/testing_toolkit/agent_benchmark/fixtures.py`.
