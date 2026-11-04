@@ -17,35 +17,35 @@
     }
   },
   "batching": {
-    "batch_tool_invocations": 87,
-    "consecutive_direct_tool_pairs_heuristic": 3223,
+    "batch_tool_invocations": 91,
+    "consecutive_direct_tool_pairs_heuristic": 3246,
     "dry_run_batch_invocations": 0,
     "dry_run_subcommands": 0,
     "execution_forms": {
-      "direct": 3232,
+      "direct": 3255,
       "proxy_batch": 1,
-      "shell_batch": 86
+      "shell_batch": 90
     },
     "observed_subcommand_outcomes": {
-      "failed": 189,
-      "succeeded": 2541,
-      "unknown": 734
+      "failed": 201,
+      "succeeded": 2551,
+      "unknown": 744
     },
-    "requested_subcommands": 3464,
+    "requested_subcommands": 3496,
     "top_consecutive_shape_pairs_heuristic": [
       {
         "first_shape": "<opaque shell form>",
-        "pairs": 1662,
+        "pairs": 1528,
         "second_shape": "<opaque shell form>"
       },
       {
         "first_shape": "<opaque shell form>",
-        "pairs": 107,
+        "pairs": 104,
         "second_shape": "sed -n <arg> <arg>"
       },
       {
         "first_shape": "sed -n <arg> <arg>",
-        "pairs": 107,
+        "pairs": 102,
         "second_shape": "<opaque shell form>"
       },
       {
@@ -55,7 +55,7 @@
       },
       {
         "first_shape": "cat <arg>",
-        "pairs": 45,
+        "pairs": 46,
         "second_shape": "<opaque shell form>"
       },
       {
@@ -65,17 +65,17 @@
       },
       {
         "first_shape": "<opaque shell form>",
-        "pairs": 41,
+        "pairs": 43,
         "second_shape": "cat <arg>"
       },
       {
         "first_shape": "<opaque shell form>",
-        "pairs": 34,
+        "pairs": 36,
         "second_shape": "rg -n <pattern> <paths>"
       },
       {
         "first_shape": "rg -n <pattern> <paths>",
-        "pairs": 30,
+        "pairs": 32,
         "second_shape": "<opaque shell form>"
       },
       {
@@ -98,11 +98,11 @@
         "tool": "apply_patch"
       },
       {
-        "calls": 267,
+        "calls": 292,
         "tool": "exec"
       },
       {
-        "calls": 62,
+        "calls": 64,
         "tool": "web__run"
       },
       {
@@ -166,70 +166,56 @@
         "tool": "wait_agent"
       }
     ],
-    "repeated_identical_invocation_excess": 836,
+    "repeated_identical_invocation_excess": 845,
     "shape_frequency_distribution": {
-      "frequency_10_plus": 30,
-      "frequency_2_to_4": 72,
-      "frequency_5_to_9": 21,
-      "singletons": 118
+      "frequency_10_plus": 33,
+      "frequency_2_to_4": 84,
+      "frequency_5_to_9": 22,
+      "singletons": 127
     },
     "shell_tool_families": [
       {
-        "invocations": 3319,
+        "invocations": 3346,
         "tool": "exec_command"
       }
     ],
     "top_executable_families": [
       {
-        "batched_calls": 12,
-        "calls": 2206,
-        "direct_calls": 2194,
+        "batched_calls": 11,
+        "calls": 2117,
+        "direct_calls": 2106,
         "distinct_sessions": 8,
         "family": "<opaque>",
         "output": {
-          "captured_lines": 118546,
-          "captured_model_visible_bytes": 6341324,
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 1056888,
-            "point": 1585331,
-            "upper": 2113775
+            "lower": 0,
+            "point": 0,
+            "upper": 0
           },
-          "matched_output_count": 2061,
-          "max_bytes": 40226,
-          "median_bytes": 555,
-          "p90_bytes": 8599,
-          "p95_bytes": 16167,
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
           "provider_measured_uncached_input_tokens": null,
           "separate_stream_bytes": 0,
           "separate_stream_observations": 0,
-          "status_counts": {
-            "failed": 112,
-            "success": 1650,
-            "unknown": 299
-          },
-          "structural_feature_counts": {
-            "ansi": 12,
-            "assertion_location": 168,
-            "git_hunk": 42,
-            "repetitive_lines": 8,
-            "stack_trace": 60,
-            "success_lines": 109,
-            "timestamps": 58,
-            "truncated": 78,
-            "warnings": 52
-          }
+          "status_counts": {},
+          "structural_feature_counts": {}
         },
-        "repeated_invocations": 371,
+        "repeated_invocations": 328,
         "status_counts": {
-          "failed": 112,
-          "success": 1650,
-          "unknown": 299
+          "failed": 0,
+          "success": 0,
+          "unknown": 0
         }
       },
       {
-        "batched_calls": 54,
-        "calls": 229,
+        "batched_calls": 58,
+        "calls": 233,
         "direct_calls": 175,
         "distinct_sessions": 5,
         "family": "git",
@@ -262,7 +248,7 @@
             "timestamps": 1
           }
         },
-        "repeated_invocations": 112,
+        "repeated_invocations": 116,
         "status_counts": {
           "failed": 1,
           "success": 161,
@@ -270,32 +256,32 @@
         }
       },
       {
-        "batched_calls": 0,
+        "batched_calls": 1,
         "calls": 229,
-        "direct_calls": 229,
+        "direct_calls": 228,
         "distinct_sessions": 6,
         "family": "sed",
         "output": {
-          "captured_lines": 41360,
-          "captured_model_visible_bytes": 1818999,
+          "captured_lines": 41376,
+          "captured_model_visible_bytes": 1820112,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 303167,
-            "point": 454750,
-            "upper": 606333
+            "lower": 303352,
+            "point": 455028,
+            "upper": 606704
           },
-          "matched_output_count": 216,
+          "matched_output_count": 215,
           "max_bytes": 40215,
-          "median_bytes": 5655,
+          "median_bytes": 5861,
           "p90_bytes": 18563,
           "p95_bytes": 23715,
           "provider_measured_uncached_input_tokens": null,
           "separate_stream_bytes": 0,
           "separate_stream_observations": 0,
           "status_counts": {
-            "failed": 5,
-            "success": 202,
-            "unknown": 9
+            "failed": 4,
+            "success": 201,
+            "unknown": 10
           },
           "structural_feature_counts": {
             "assertion_location": 59,
@@ -308,29 +294,29 @@
         },
         "repeated_invocations": 12,
         "status_counts": {
-          "failed": 5,
-          "success": 202,
-          "unknown": 9
+          "failed": 4,
+          "success": 201,
+          "unknown": 10
         }
       },
       {
         "batched_calls": 0,
-        "calls": 118,
-        "direct_calls": 118,
+        "calls": 121,
+        "direct_calls": 121,
         "distinct_sessions": 6,
         "family": "rg",
         "output": {
-          "captured_lines": 3885,
-          "captured_model_visible_bytes": 379950,
+          "captured_lines": 3935,
+          "captured_model_visible_bytes": 382226,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 63325,
-            "point": 94988,
-            "upper": 126650
+            "lower": 63705,
+            "point": 95557,
+            "upper": 127409
           },
-          "matched_output_count": 93,
+          "matched_output_count": 96,
           "max_bytes": 40227,
-          "median_bytes": 1548,
+          "median_bytes": 1530,
           "p90_bytes": 10307,
           "p95_bytes": 19090,
           "provider_measured_uncached_input_tokens": null,
@@ -338,8 +324,8 @@
           "separate_stream_observations": 0,
           "status_counts": {
             "failed": 9,
-            "success": 69,
-            "unknown": 15
+            "success": 70,
+            "unknown": 17
           },
           "structural_feature_counts": {
             "assertion_location": 13,
@@ -351,69 +337,70 @@
         "repeated_invocations": 0,
         "status_counts": {
           "failed": 9,
-          "success": 69,
-          "unknown": 15
+          "success": 70,
+          "unknown": 17
         }
       },
       {
-        "batched_calls": 61,
-        "calls": 108,
-        "direct_calls": 47,
+        "batched_calls": 63,
+        "calls": 116,
+        "direct_calls": 53,
         "distinct_sessions": 4,
         "family": "cargo test",
         "output": {
-          "captured_lines": 2164,
-          "captured_model_visible_bytes": 120335,
+          "captured_lines": 2335,
+          "captured_model_visible_bytes": 138942,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 20056,
-            "point": 30084,
-            "upper": 40112
+            "lower": 23157,
+            "point": 34736,
+            "upper": 46314
           },
-          "matched_output_count": 47,
-          "max_bytes": 10075,
-          "median_bytes": 1557,
+          "matched_output_count": 53,
+          "max_bytes": 12502,
+          "median_bytes": 1462,
           "p90_bytes": 5728,
-          "p95_bytes": 7201,
+          "p95_bytes": 9351,
           "provider_measured_uncached_input_tokens": null,
           "separate_stream_bytes": 0,
           "separate_stream_observations": 0,
           "status_counts": {
-            "failed": 14,
-            "success": 33
+            "failed": 15,
+            "success": 37,
+            "unknown": 1
           },
           "structural_feature_counts": {
             "assertion_location": 7,
-            "stack_trace": 10,
-            "success_lines": 43,
+            "stack_trace": 11,
+            "success_lines": 48,
             "warnings": 3
           }
         },
-        "repeated_invocations": 72,
+        "repeated_invocations": 76,
         "status_counts": {
-          "failed": 14,
-          "success": 33,
-          "unknown": 0
+          "failed": 15,
+          "success": 37,
+          "unknown": 1
         }
       },
       {
         "batched_calls": 0,
-        "calls": 104,
-        "direct_calls": 104,
+        "calls": 105,
+        "direct_calls": 105,
         "distinct_sessions": 7,
         "family": "cat",
         "output": {
-          "captured_lines": 4356,
-          "captured_model_visible_bytes": 401599,
+          "captured_lines": 4397,
+          "captured_model_visible_bytes": 407083,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 66934,
-            "point": 100400,
-            "upper": 133867
+            "lower": 67848,
+            "point": 101771,
+            "upper": 135695
           },
-          "matched_output_count": 94,
+          "matched_output_count": 95,
           "max_bytes": 33205,
-          "median_bytes": 3087,
+          "median_bytes": 3101,
           "p90_bytes": 5542,
           "p95_bytes": 9719,
           "provider_measured_uncached_input_tokens": null,
@@ -421,7 +408,7 @@
           "separate_stream_observations": 0,
           "status_counts": {
             "success": 88,
-            "unknown": 6
+            "unknown": 7
           },
           "structural_feature_counts": {
             "assertion_location": 11,
@@ -429,16 +416,56 @@
             "truncated": 2
           }
         },
-        "repeated_invocations": 65,
+        "repeated_invocations": 66,
         "status_counts": {
           "failed": 0,
           "success": 88,
-          "unknown": 6
+          "unknown": 7
         }
       },
       {
-        "batched_calls": 48,
-        "calls": 56,
+        "batched_calls": 0,
+        "calls": 59,
+        "direct_calls": 59,
+        "distinct_sessions": 2,
+        "family": "python -m unittest",
+        "output": {
+          "captured_lines": 1040,
+          "captured_model_visible_bytes": 96205,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 16035,
+            "point": 24052,
+            "upper": 32069
+          },
+          "matched_output_count": 59,
+          "max_bytes": 9554,
+          "median_bytes": 1103,
+          "p90_bytes": 3999,
+          "p95_bytes": 7401,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 6,
+            "success": 30,
+            "unknown": 23
+          },
+          "structural_feature_counts": {
+            "stack_trace": 6,
+            "success_lines": 1
+          }
+        },
+        "repeated_invocations": 35,
+        "status_counts": {
+          "failed": 6,
+          "success": 30,
+          "unknown": 23
+        }
+      },
+      {
+        "batched_calls": 50,
+        "calls": 58,
         "direct_calls": 8,
         "distinct_sessions": 4,
         "family": "cargo fmt",
@@ -468,7 +495,7 @@
             "success_lines": 1
           }
         },
-        "repeated_invocations": 48,
+        "repeated_invocations": 50,
         "status_counts": {
           "failed": 4,
           "success": 4,
@@ -477,20 +504,20 @@
       },
       {
         "batched_calls": 1,
-        "calls": 52,
-        "direct_calls": 51,
+        "calls": 53,
+        "direct_calls": 52,
         "distinct_sessions": 6,
         "family": "codex",
         "output": {
-          "captured_lines": 1942,
-          "captured_model_visible_bytes": 159453,
+          "captured_lines": 1946,
+          "captured_model_visible_bytes": 168325,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 26576,
-            "point": 39864,
-            "upper": 53151
+            "lower": 28055,
+            "point": 42082,
+            "upper": 56109
           },
-          "matched_output_count": 41,
+          "matched_output_count": 42,
           "max_bytes": 40224,
           "median_bytes": 1298,
           "p90_bytes": 8927,
@@ -501,7 +528,7 @@
           "status_counts": {
             "failed": 8,
             "success": 25,
-            "unknown": 8
+            "unknown": 9
           },
           "structural_feature_counts": {
             "timestamps": 5,
@@ -513,36 +540,77 @@
         "status_counts": {
           "failed": 8,
           "success": 25,
-          "unknown": 8
+          "unknown": 9
         }
       },
       {
         "batched_calls": 0,
-        "calls": 39,
-        "direct_calls": 39,
+        "calls": 45,
+        "direct_calls": 45,
+        "distinct_sessions": 5,
+        "family": "python3",
+        "output": {
+          "captured_lines": 692,
+          "captured_model_visible_bytes": 42975,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 7163,
+            "point": 10744,
+            "upper": 14325
+          },
+          "matched_output_count": 43,
+          "max_bytes": 10802,
+          "median_bytes": 114,
+          "p90_bytes": 1513,
+          "p95_bytes": 7420,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 1,
+            "success": 7,
+            "unknown": 35
+          },
+          "structural_feature_counts": {
+            "assertion_location": 1,
+            "stack_trace": 1,
+            "success_lines": 1
+          }
+        },
+        "repeated_invocations": 12,
+        "status_counts": {
+          "failed": 1,
+          "success": 7,
+          "unknown": 35
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 42,
+        "direct_calls": 42,
         "distinct_sessions": 1,
         "family": "python",
         "output": {
-          "captured_lines": 3749,
-          "captured_model_visible_bytes": 200504,
+          "captured_lines": 3896,
+          "captured_model_visible_bytes": 221612,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 33418,
-            "point": 50126,
-            "upper": 66835
+            "lower": 36936,
+            "point": 55403,
+            "upper": 73871
           },
-          "matched_output_count": 39,
+          "matched_output_count": 42,
           "max_bytes": 22066,
           "median_bytes": 1565,
-          "p90_bytes": 18739,
-          "p95_bytes": 20746,
+          "p90_bytes": 18372,
+          "p95_bytes": 20743,
           "provider_measured_uncached_input_tokens": null,
           "separate_stream_bytes": 0,
           "separate_stream_observations": 0,
           "status_counts": {
             "failed": 2,
             "success": 28,
-            "unknown": 9
+            "unknown": 12
           },
           "structural_feature_counts": {
             "assertion_location": 8,
@@ -551,11 +619,11 @@
             "timestamps": 14
           }
         },
-        "repeated_invocations": 19,
+        "repeated_invocations": 21,
         "status_counts": {
           "failed": 2,
           "success": 28,
-          "unknown": 9
+          "unknown": 12
         }
       },
       {
@@ -640,47 +708,6 @@
         "batched_calls": 0,
         "calls": 22,
         "direct_calls": 22,
-        "distinct_sessions": 5,
-        "family": "python3",
-        "output": {
-          "captured_lines": 411,
-          "captured_model_visible_bytes": 16336,
-          "estimated_observation_tokens": {
-            "confidence": "heuristic_bytes_per_token",
-            "lower": 2723,
-            "point": 4084,
-            "upper": 5446
-          },
-          "matched_output_count": 20,
-          "max_bytes": 10802,
-          "median_bytes": 113,
-          "p90_bytes": 1079,
-          "p95_bytes": 1513,
-          "provider_measured_uncached_input_tokens": null,
-          "separate_stream_bytes": 0,
-          "separate_stream_observations": 0,
-          "status_counts": {
-            "failed": 1,
-            "success": 3,
-            "unknown": 16
-          },
-          "structural_feature_counts": {
-            "assertion_location": 1,
-            "stack_trace": 1,
-            "success_lines": 1
-          }
-        },
-        "repeated_invocations": 7,
-        "status_counts": {
-          "failed": 1,
-          "success": 3,
-          "unknown": 16
-        }
-      },
-      {
-        "batched_calls": 0,
-        "calls": 22,
-        "direct_calls": 22,
         "distinct_sessions": 2,
         "family": "wc",
         "output": {
@@ -753,8 +780,8 @@
         }
       },
       {
-        "batched_calls": 8,
-        "calls": 12,
+        "batched_calls": 9,
+        "calls": 13,
         "direct_calls": 4,
         "distinct_sessions": 4,
         "family": "cargo build",
@@ -790,20 +817,20 @@
       },
       {
         "batched_calls": 0,
-        "calls": 11,
-        "direct_calls": 11,
+        "calls": 13,
+        "direct_calls": 13,
         "distinct_sessions": 1,
         "family": "go test",
         "output": {
-          "captured_lines": 113,
-          "captured_model_visible_bytes": 5403,
+          "captured_lines": 129,
+          "captured_model_visible_bytes": 6169,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 901,
-            "point": 1351,
-            "upper": 1801
+            "lower": 1029,
+            "point": 1543,
+            "upper": 2057
           },
-          "matched_output_count": 11,
+          "matched_output_count": 13,
           "max_bytes": 1631,
           "median_bytes": 383,
           "p90_bytes": 522,
@@ -813,17 +840,55 @@
           "separate_stream_observations": 0,
           "status_counts": {
             "failed": 1,
-            "success": 10
+            "success": 12
           },
           "structural_feature_counts": {
             "stack_trace": 1
           }
         },
-        "repeated_invocations": 8,
+        "repeated_invocations": 9,
         "status_counts": {
           "failed": 1,
-          "success": 10,
+          "success": 12,
           "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 12,
+        "direct_calls": 12,
+        "distinct_sessions": 1,
+        "family": "delayed-seq",
+        "output": {
+          "captured_lines": 48,
+          "captured_model_visible_bytes": 13640,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 2274,
+            "point": 3410,
+            "upper": 4547
+          },
+          "matched_output_count": 12,
+          "max_bytes": 12410,
+          "median_bytes": 112,
+          "p90_bytes": 112,
+          "p95_bytes": 12410,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 1,
+            "unknown": 11
+          },
+          "structural_feature_counts": {
+            "success_lines": 1
+          }
+        },
+        "repeated_invocations": 2,
+        "status_counts": {
+          "failed": 0,
+          "success": 1,
+          "unknown": 11
         }
       },
       {
@@ -831,7 +896,7 @@
         "calls": 11,
         "direct_calls": 11,
         "distinct_sessions": 1,
-        "family": "python -m py_compile",
+        "family": "python -m <module>",
         "output": {
           "captured_lines": 55,
           "captured_model_visible_bytes": 1122,
@@ -859,78 +924,6 @@
           "failed": 0,
           "success": 11,
           "unknown": 0
-        }
-      },
-      {
-        "batched_calls": 0,
-        "calls": 11,
-        "direct_calls": 11,
-        "distinct_sessions": 1,
-        "family": "python -m unittest",
-        "output": {
-          "captured_lines": 195,
-          "captured_model_visible_bytes": 17765,
-          "estimated_observation_tokens": {
-            "confidence": "heuristic_bytes_per_token",
-            "lower": 2961,
-            "point": 4442,
-            "upper": 5922
-          },
-          "matched_output_count": 11,
-          "max_bytes": 1965,
-          "median_bytes": 1789,
-          "p90_bytes": 1837,
-          "p95_bytes": 1965,
-          "provider_measured_uncached_input_tokens": null,
-          "separate_stream_bytes": 0,
-          "separate_stream_observations": 0,
-          "status_counts": {
-            "success": 2,
-            "unknown": 9
-          },
-          "structural_feature_counts": {}
-        },
-        "repeated_invocations": 9,
-        "status_counts": {
-          "failed": 0,
-          "success": 2,
-          "unknown": 9
-        }
-      },
-      {
-        "batched_calls": 0,
-        "calls": 10,
-        "direct_calls": 10,
-        "distinct_sessions": 3,
-        "family": "find",
-        "output": {
-          "captured_lines": 52,
-          "captured_model_visible_bytes": 1103,
-          "estimated_observation_tokens": {
-            "confidence": "heuristic_bytes_per_token",
-            "lower": 184,
-            "point": 276,
-            "upper": 368
-          },
-          "matched_output_count": 10,
-          "max_bytes": 173,
-          "median_bytes": 102,
-          "p90_bytes": 114,
-          "p95_bytes": 173,
-          "provider_measured_uncached_input_tokens": null,
-          "separate_stream_bytes": 0,
-          "separate_stream_observations": 0,
-          "status_counts": {
-            "success": 9,
-            "unknown": 1
-          },
-          "structural_feature_counts": {}
-        },
-        "repeated_invocations": 1,
-        "status_counts": {
-          "failed": 0,
-          "success": 9,
-          "unknown": 1
         }
       },
       {
@@ -979,69 +972,55 @@
     ],
     "top_normalized_shapes": [
       {
-        "batched_calls": 12,
-        "calls": 2206,
-        "direct_calls": 2194,
+        "batched_calls": 11,
+        "calls": 2117,
+        "direct_calls": 2106,
         "distinct_sessions": 8,
         "output": {
-          "captured_lines": 118546,
-          "captured_model_visible_bytes": 6341324,
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 1056888,
-            "point": 1585331,
-            "upper": 2113775
+            "lower": 0,
+            "point": 0,
+            "upper": 0
           },
-          "matched_output_count": 2061,
-          "max_bytes": 40226,
-          "median_bytes": 555,
-          "p90_bytes": 8599,
-          "p95_bytes": 16167,
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
           "provider_measured_uncached_input_tokens": null,
           "separate_stream_bytes": 0,
           "separate_stream_observations": 0,
-          "status_counts": {
-            "failed": 112,
-            "success": 1650,
-            "unknown": 299
-          },
-          "structural_feature_counts": {
-            "ansi": 12,
-            "assertion_location": 168,
-            "git_hunk": 42,
-            "repetitive_lines": 8,
-            "stack_trace": 60,
-            "success_lines": 109,
-            "timestamps": 58,
-            "truncated": 78,
-            "warnings": 52
-          }
+          "status_counts": {},
+          "structural_feature_counts": {}
         },
-        "repeated_invocations": 371,
+        "repeated_invocations": 328,
         "shape": "<opaque shell form>",
         "status_counts": {
-          "failed": 112,
-          "success": 1650,
-          "unknown": 299
+          "failed": 0,
+          "success": 0,
+          "unknown": 0
         }
       },
       {
-        "batched_calls": 0,
-        "calls": 224,
-        "direct_calls": 224,
+        "batched_calls": 1,
+        "calls": 226,
+        "direct_calls": 225,
         "distinct_sessions": 6,
         "output": {
-          "captured_lines": 41216,
-          "captured_model_visible_bytes": 1815350,
+          "captured_lines": 41273,
+          "captured_model_visible_bytes": 1817502,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 302559,
-            "point": 453838,
-            "upper": 605117
+            "lower": 302917,
+            "point": 454376,
+            "upper": 605834
           },
-          "matched_output_count": 211,
+          "matched_output_count": 212,
           "max_bytes": 40215,
-          "median_bytes": 6185,
+          "median_bytes": 6130,
           "p90_bytes": 18563,
           "p95_bytes": 23715,
           "provider_measured_uncached_input_tokens": null,
@@ -1050,7 +1029,7 @@
           "status_counts": {
             "failed": 4,
             "success": 198,
-            "unknown": 9
+            "unknown": 10
           },
           "structural_feature_counts": {
             "assertion_location": 59,
@@ -1066,26 +1045,26 @@
         "status_counts": {
           "failed": 4,
           "success": 198,
-          "unknown": 9
+          "unknown": 10
         }
       },
       {
         "batched_calls": 0,
-        "calls": 104,
-        "direct_calls": 104,
+        "calls": 105,
+        "direct_calls": 105,
         "distinct_sessions": 7,
         "output": {
-          "captured_lines": 4356,
-          "captured_model_visible_bytes": 401599,
+          "captured_lines": 4397,
+          "captured_model_visible_bytes": 407083,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 66934,
-            "point": 100400,
-            "upper": 133867
+            "lower": 67848,
+            "point": 101771,
+            "upper": 135695
           },
-          "matched_output_count": 94,
+          "matched_output_count": 95,
           "max_bytes": 33205,
-          "median_bytes": 3087,
+          "median_bytes": 3101,
           "p90_bytes": 5542,
           "p95_bytes": 9719,
           "provider_measured_uncached_input_tokens": null,
@@ -1093,7 +1072,7 @@
           "separate_stream_observations": 0,
           "status_counts": {
             "success": 88,
-            "unknown": 6
+            "unknown": 7
           },
           "structural_feature_counts": {
             "assertion_location": 11,
@@ -1101,29 +1080,29 @@
             "truncated": 2
           }
         },
-        "repeated_invocations": 65,
+        "repeated_invocations": 66,
         "shape": "cat <arg>",
         "status_counts": {
           "failed": 0,
           "success": 88,
-          "unknown": 6
+          "unknown": 7
         }
       },
       {
         "batched_calls": 0,
-        "calls": 57,
-        "direct_calls": 57,
+        "calls": 60,
+        "direct_calls": 60,
         "distinct_sessions": 5,
         "output": {
-          "captured_lines": 1389,
-          "captured_model_visible_bytes": 148900,
+          "captured_lines": 1439,
+          "captured_model_visible_bytes": 151176,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 24817,
-            "point": 37225,
-            "upper": 49634
+            "lower": 25196,
+            "point": 37794,
+            "upper": 50392
           },
-          "matched_output_count": 44,
+          "matched_output_count": 47,
           "max_bytes": 28155,
           "median_bytes": 860,
           "p90_bytes": 10307,
@@ -1133,8 +1112,8 @@
           "separate_stream_observations": 0,
           "status_counts": {
             "failed": 2,
-            "success": 34,
-            "unknown": 8
+            "success": 35,
+            "unknown": 10
           },
           "structural_feature_counts": {
             "assertion_location": 5,
@@ -1147,8 +1126,8 @@
         "shape": "rg -n <pattern> <paths>",
         "status_counts": {
           "failed": 2,
-          "success": 34,
-          "unknown": 8
+          "success": 35,
+          "unknown": 10
         }
       },
       {
@@ -1184,6 +1163,45 @@
           "failed": 0,
           "success": 3,
           "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 31,
+        "direct_calls": 31,
+        "distinct_sessions": 2,
+        "output": {
+          "captured_lines": 497,
+          "captured_model_visible_bytes": 34887,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 5815,
+            "point": 8722,
+            "upper": 11629
+          },
+          "matched_output_count": 31,
+          "max_bytes": 3999,
+          "median_bytes": 812,
+          "p90_bytes": 2257,
+          "p95_bytes": 2865,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 4,
+            "success": 26,
+            "unknown": 1
+          },
+          "structural_feature_counts": {
+            "stack_trace": 4
+          }
+        },
+        "repeated_invocations": 16,
+        "shape": "python -m unittest -m -v <selector>",
+        "status_counts": {
+          "failed": 4,
+          "success": 26,
+          "unknown": 1
         }
       },
       {
@@ -1260,48 +1278,49 @@
       },
       {
         "batched_calls": 10,
-        "calls": 23,
-        "direct_calls": 13,
+        "calls": 26,
+        "direct_calls": 16,
         "distinct_sessions": 2,
         "output": {
-          "captured_lines": 665,
-          "captured_model_visible_bytes": 43584,
+          "captured_lines": 718,
+          "captured_model_visible_bytes": 57936,
           "estimated_observation_tokens": {
             "confidence": "heuristic_bytes_per_token",
-            "lower": 7264,
-            "point": 10896,
-            "upper": 14528
+            "lower": 9656,
+            "point": 14484,
+            "upper": 19312
           },
-          "matched_output_count": 13,
-          "max_bytes": 5728,
-          "median_bytes": 3443,
-          "p90_bytes": 5533,
-          "p95_bytes": 5728,
+          "matched_output_count": 16,
+          "max_bytes": 12502,
+          "median_bytes": 2234,
+          "p90_bytes": 5728,
+          "p95_bytes": 12502,
           "provider_measured_uncached_input_tokens": null,
           "separate_stream_bytes": 0,
           "separate_stream_observations": 0,
           "status_counts": {
-            "failed": 6,
-            "success": 7
+            "failed": 7,
+            "success": 8,
+            "unknown": 1
           },
           "structural_feature_counts": {
             "assertion_location": 3,
-            "stack_trace": 3,
-            "success_lines": 10,
+            "stack_trace": 4,
+            "success_lines": 12,
             "warnings": 2
           }
         },
-        "repeated_invocations": 17,
+        "repeated_invocations": 18,
         "shape": "cargo test --lib",
         "status_counts": {
-          "failed": 6,
-          "success": 7,
-          "unknown": 0
+          "failed": 7,
+          "success": 8,
+          "unknown": 1
         }
       },
       {
-        "batched_calls": 2,
-        "calls": 23,
+        "batched_calls": 3,
+        "calls": 24,
         "direct_calls": 21,
         "distinct_sessions": 3,
         "output": {
@@ -1327,12 +1346,53 @@
           },
           "structural_feature_counts": {}
         },
-        "repeated_invocations": 22,
+        "repeated_invocations": 23,
         "shape": "git status --short --branch",
         "status_counts": {
           "failed": 0,
           "success": 20,
           "unknown": 1
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 22,
+        "direct_calls": 22,
+        "distinct_sessions": 1,
+        "output": {
+          "captured_lines": 2876,
+          "captured_model_visible_bytes": 195316,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 32553,
+            "point": 48829,
+            "upper": 65106
+          },
+          "matched_output_count": 22,
+          "max_bytes": 22066,
+          "median_bytes": 7036,
+          "p90_bytes": 20743,
+          "p95_bytes": 20746,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 2,
+            "success": 8,
+            "unknown": 12
+          },
+          "structural_feature_counts": {
+            "assertion_location": 8,
+            "stack_trace": 2,
+            "success_lines": 8
+          }
+        },
+        "repeated_invocations": 20,
+        "shape": "python --browser <arg>",
+        "status_counts": {
+          "failed": 2,
+          "success": 8,
+          "unknown": 12
         }
       },
       {
@@ -1408,47 +1468,6 @@
           "failed": 3,
           "success": 8,
           "unknown": 0
-        }
-      },
-      {
-        "batched_calls": 0,
-        "calls": 19,
-        "direct_calls": 19,
-        "distinct_sessions": 1,
-        "output": {
-          "captured_lines": 2729,
-          "captured_model_visible_bytes": 174208,
-          "estimated_observation_tokens": {
-            "confidence": "heuristic_bytes_per_token",
-            "lower": 29035,
-            "point": 43552,
-            "upper": 58070
-          },
-          "matched_output_count": 19,
-          "max_bytes": 22066,
-          "median_bytes": 11112,
-          "p90_bytes": 20746,
-          "p95_bytes": 22066,
-          "provider_measured_uncached_input_tokens": null,
-          "separate_stream_bytes": 0,
-          "separate_stream_observations": 0,
-          "status_counts": {
-            "failed": 2,
-            "success": 8,
-            "unknown": 9
-          },
-          "structural_feature_counts": {
-            "assertion_location": 8,
-            "stack_trace": 2,
-            "success_lines": 8
-          }
-        },
-        "repeated_invocations": 18,
-        "shape": "python --browser <arg>",
-        "status_counts": {
-          "failed": 2,
-          "success": 8,
-          "unknown": 9
         }
       },
       {
@@ -1929,6 +1948,42 @@
         }
       },
       {
+        "batched_calls": 9,
+        "calls": 12,
+        "direct_calls": 3,
+        "distinct_sessions": 4,
+        "output": {
+          "captured_lines": 20,
+          "captured_model_visible_bytes": 701,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 117,
+            "point": 176,
+            "upper": 234
+          },
+          "matched_output_count": 3,
+          "max_bytes": 251,
+          "median_bytes": 251,
+          "p90_bytes": 251,
+          "p95_bytes": 251,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 2,
+            "unknown": 1
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 10,
+        "shape": "cargo build --release",
+        "status_counts": {
+          "failed": 0,
+          "success": 2,
+          "unknown": 1
+        }
+      },
+      {
         "batched_calls": 11,
         "calls": 12,
         "direct_calls": 1,
@@ -2001,42 +2056,6 @@
         }
       },
       {
-        "batched_calls": 8,
-        "calls": 11,
-        "direct_calls": 3,
-        "distinct_sessions": 4,
-        "output": {
-          "captured_lines": 20,
-          "captured_model_visible_bytes": 701,
-          "estimated_observation_tokens": {
-            "confidence": "heuristic_bytes_per_token",
-            "lower": 117,
-            "point": 176,
-            "upper": 234
-          },
-          "matched_output_count": 3,
-          "max_bytes": 251,
-          "median_bytes": 251,
-          "p90_bytes": 251,
-          "p95_bytes": 251,
-          "provider_measured_uncached_input_tokens": null,
-          "separate_stream_bytes": 0,
-          "separate_stream_observations": 0,
-          "status_counts": {
-            "success": 2,
-            "unknown": 1
-          },
-          "structural_feature_counts": {}
-        },
-        "repeated_invocations": 10,
-        "shape": "cargo build --release",
-        "status_counts": {
-          "failed": 0,
-          "success": 2,
-          "unknown": 1
-        }
-      },
-      {
         "batched_calls": 0,
         "calls": 11,
         "direct_calls": 11,
@@ -2073,53 +2092,15 @@
           "success": 9,
           "unknown": 1
         }
-      },
-      {
-        "batched_calls": 0,
-        "calls": 10,
-        "direct_calls": 10,
-        "distinct_sessions": 4,
-        "output": {
-          "captured_lines": 393,
-          "captured_model_visible_bytes": 14718,
-          "estimated_observation_tokens": {
-            "confidence": "heuristic_bytes_per_token",
-            "lower": 2453,
-            "point": 3680,
-            "upper": 4906
-          },
-          "matched_output_count": 7,
-          "max_bytes": 4378,
-          "median_bytes": 1401,
-          "p90_bytes": 4378,
-          "p95_bytes": 4378,
-          "provider_measured_uncached_input_tokens": null,
-          "separate_stream_bytes": 0,
-          "separate_stream_observations": 0,
-          "status_counts": {
-            "success": 5,
-            "unknown": 2
-          },
-          "structural_feature_counts": {
-            "warnings": 2
-          }
-        },
-        "repeated_invocations": 5,
-        "shape": "codex --help <arg>",
-        "status_counts": {
-          "failed": 0,
-          "success": 5,
-          "unknown": 2
-        }
       }
     ],
     "workload_categories": {
-      "build_or_lint": 40,
-      "filesystem_read": 354,
-      "git": 229,
-      "other": 2589,
-      "search": 118,
-      "validation": 134
+      "build_or_lint": 41,
+      "filesystem_read": 352,
+      "git": 233,
+      "other": 2553,
+      "search": 121,
+      "validation": 196
     }
   },
   "coverage": {
@@ -2131,36 +2112,44 @@
     "duplicate_output_events": 18,
     "duplicate_request_events": 18,
     "file_limit_reached": true,
+    "high_confidence_family_coverage": 0.394451,
+    "high_confidence_single_subcommands": 1379,
     "invalid_json_records": 3,
     "invalid_utf8_records": 0,
-    "malformed_argument_events": 93,
-    "matched_result_groups": 3107,
-    "matched_shell_invocations": 3107,
+    "legacy_v1_opaque_subcommands": 2225,
+    "malformed_argument_events": 115,
+    "matched_result_groups": 3134,
+    "matched_shell_invocations": 3134,
     "missing_timestamps": 0,
-    "non_shell_result_records": 2348,
-    "non_shell_tool_invocations": 2528,
-    "opaque_subcommands": 2206,
+    "non_shell_result_records": 2373,
+    "non_shell_tool_invocations": 2555,
+    "opaque_subcommands": 2117,
     "oversized_records": 0,
     "parsing_confidence": {
-      "high": 1258,
-      "opaque": 2206
+      "high": 1379,
+      "opaque": 703,
+      "partial": 1414
     },
-    "parsing_unknown_share": 0.636836,
+    "parsing_unknown_share": 0.605549,
+    "partial_syntactic_subcommands": 1414,
+    "partial_syntax_coverage": 0.404462,
     "partial_trailing_records": 1,
     "processed_files": 12,
-    "records": 38700,
-    "requested_underlying_subcommands": 3464,
-    "result_match_coverage": 0.936125,
+    "records": 39321,
+    "requested_underlying_subcommands": 3496,
+    "result_match_coverage": 0.936641,
     "sessions": 10,
-    "shell_tool_invocations": 3319,
+    "shell_tool_invocations": 3346,
     "skipped_symlinks": 0,
+    "strict_opaque_share": 0.201087,
+    "strict_opaque_subcommands": 703,
     "subcommand_index_distribution": {
-      "1": 3319,
-      "2": 87,
-      "3": 45,
+      "1": 3346,
+      "2": 91,
+      "3": 46,
       "4+": 13
     },
-    "tool_result_records": 5525,
+    "tool_result_records": 5577,
     "truncated_files": 1,
     "unmatched_result_records": 0,
     "unreadable_files": 0
@@ -2170,6 +2159,7 @@
     "Unmatched, composite, truncated, malformed, and unsupported records reduce confidence.",
     "Normalized shapes intentionally omit command arguments and exact paths.",
     "The analyzer does not execute, replay, upload, or inspect workspace contents.",
+    "A syntactic segment is not evidence that the executable ran or produced output.",
     "The batching-pair count is not a claim that those calls could or should be batched."
   ],
   "methodology": {
@@ -2179,49 +2169,995 @@
       "upper_divisor_bytes_per_token": 3,
       "warning": "These are heuristic size estimates, not tokenizer counts and not provider-measured uncached input."
     },
-    "output_attribution": "Only exact session/call-id matches with one non-composite observation are attributed. Batch output is never multiplied across subcommands.",
-    "read_only": true
+    "output_attribution": "Only exact session/call-id matches with one non-composite observation and one high-confidence executable are attributed. Partial syntactic segments and batch output are never multiplied across subcommands.",
+    "read_only": true,
+    "schema_migration": {
+      "changed_semantics": "coverage.opaque_subcommands remains the count without a high-confidence executable attribution, but version 2 splits that count into partial_syntactic and strict opaque forms. Opaque diagnostics and attribution are additive sections.",
+      "compatible_fields": [
+        "coverage.shell_tool_invocations",
+        "coverage.requested_underlying_subcommands",
+        "coverage.matched_shell_invocations",
+        "output_measurement.observed_model_visible_output"
+      ],
+      "from_version": 1,
+      "to_version": 2
+    }
+  },
+  "opaque_attribution": {
+    "confidence": [
+      {
+        "confidence": "high_confidence_single",
+        "requested_commands": 1379,
+        "share": 0.394451
+      },
+      {
+        "confidence": "partial_syntactic",
+        "requested_commands": 1414,
+        "share": 0.404462
+      },
+      {
+        "confidence": "unresolved_opaque",
+        "requested_commands": 703,
+        "share": 0.201087
+      }
+    ],
+    "confidence_levels": [
+      "high_confidence_single",
+      "partial_syntactic",
+      "unresolved_opaque"
+    ],
+    "output_ownership": {
+      "exclusively_attributable_matched_outputs": {
+        "captured_lines": 68903,
+        "captured_model_visible_bytes": 3801724,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 633621,
+          "point": 950431,
+          "upper": 1267242
+        },
+        "matched_output_count": 1068,
+        "max_bytes": 40227,
+        "median_bytes": 1088,
+        "p90_bytes": 10725,
+        "p95_bytes": 15452,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "failed": 67,
+          "success": 828,
+          "unknown": 173
+        },
+        "structural_feature_counts": {
+          "ansi": 2,
+          "assertion_location": 122,
+          "git_hunk": 12,
+          "repetitive_lines": 2,
+          "stack_trace": 22,
+          "success_lines": 103,
+          "timestamps": 38,
+          "truncated": 40,
+          "warnings": 32
+        }
+      },
+      "matched_invocation_output_bytes": 10468017,
+      "rule": "Composite, partial, ambiguous, unmatched, and wrapper-batch outputs remain owned by the originating invocation and are not multiplied across syntactic segments.",
+      "still_unattributable_output_bytes": 6666293
+    },
+    "reason_by_execution_form": {
+      "boolean_chain": {
+        "direct": 789,
+        "shell_batch": 2
+      },
+      "command_sequence": {
+        "direct": 139
+      },
+      "environment_assignment": {
+        "direct": 246,
+        "shell_batch": 1
+      },
+      "multiline_script": {
+        "direct": 15
+      },
+      "null_byte_or_invalid": {},
+      "redirect_or_heredoc": {
+        "direct": 412,
+        "shell_batch": 2
+      },
+      "shell_function_or_control_flow": {
+        "direct": 241,
+        "shell_batch": 2
+      },
+      "shell_pipeline": {
+        "direct": 283,
+        "shell_batch": 5
+      },
+      "subshell_or_group": {
+        "direct": 20
+      },
+      "unknown_or_other": {
+        "direct": 2
+      },
+      "unsupported_quote_or_lexer": {
+        "direct": 1
+      },
+      "variable_or_command_expansion": {
+        "direct": 63
+      }
+    },
+    "reason_precedence": [
+      "null_byte_or_invalid",
+      "shell_function_or_control_flow",
+      "variable_or_command_expansion",
+      "redirect_or_heredoc",
+      "subshell_or_group",
+      "command_sequence",
+      "boolean_chain",
+      "shell_pipeline",
+      "multiline_script",
+      "environment_assignment",
+      "unsupported_quote_or_lexer",
+      "unknown_or_other"
+    ],
+    "reasons": [
+      {
+        "confidence": {},
+        "distinct_sessions": 0,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {},
+        "feature_counts": {},
+        "matched_output_invocations": 0,
+        "reason": "null_byte_or_invalid",
+        "requested_commands": 0,
+        "secondary_reason_counts": {},
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        }
+      },
+      {
+        "confidence": {
+          "opaque": 243
+        },
+        "distinct_sessions": 7,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 241,
+          "shell_batch": 2
+        },
+        "feature_counts": {
+          "contains_boolean_chain": 35,
+          "contains_command_sequence": 144,
+          "contains_control_flow": 243,
+          "contains_expansion": 57,
+          "contains_grouping": 173,
+          "contains_heredoc": 168,
+          "contains_leading_assignment": 49,
+          "contains_multiline": 172,
+          "contains_pipeline": 47,
+          "contains_redirection": 13
+        },
+        "matched_output_invocations": 241,
+        "reason": "shell_function_or_control_flow",
+        "requested_commands": 243,
+        "secondary_reason_counts": {
+          "boolean_chain": 35,
+          "command_sequence": 144,
+          "environment_assignment": 49,
+          "multiline_script": 172,
+          "redirect_or_heredoc": 181,
+          "shell_pipeline": 47,
+          "subshell_or_group": 173,
+          "variable_or_command_expansion": 57
+        },
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 29591,
+          "point": 44386,
+          "upper": 59181
+        }
+      },
+      {
+        "confidence": {
+          "opaque": 63
+        },
+        "distinct_sessions": 6,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 63
+        },
+        "feature_counts": {
+          "contains_boolean_chain": 23,
+          "contains_command_sequence": 33,
+          "contains_expansion": 63,
+          "contains_grouping": 29,
+          "contains_heredoc": 4,
+          "contains_leading_assignment": 24,
+          "contains_multiline": 13,
+          "contains_pipeline": 19,
+          "contains_redirection": 32
+        },
+        "matched_output_invocations": 63,
+        "reason": "variable_or_command_expansion",
+        "requested_commands": 63,
+        "secondary_reason_counts": {
+          "boolean_chain": 23,
+          "command_sequence": 33,
+          "environment_assignment": 24,
+          "multiline_script": 13,
+          "redirect_or_heredoc": 36,
+          "shell_pipeline": 19,
+          "subshell_or_group": 29
+        },
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 5169,
+          "point": 7753,
+          "upper": 10337
+        }
+      },
+      {
+        "confidence": {
+          "opaque": 208,
+          "partial": 206
+        },
+        "distinct_sessions": 7,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 412,
+          "shell_batch": 2
+        },
+        "feature_counts": {
+          "contains_boolean_chain": 131,
+          "contains_command_sequence": 127,
+          "contains_grouping": 206,
+          "contains_heredoc": 197,
+          "contains_leading_assignment": 51,
+          "contains_multiline": 211,
+          "contains_pipeline": 129,
+          "contains_redirection": 217
+        },
+        "matched_output_invocations": 400,
+        "reason": "redirect_or_heredoc",
+        "requested_commands": 414,
+        "secondary_reason_counts": {
+          "boolean_chain": 131,
+          "command_sequence": 127,
+          "environment_assignment": 51,
+          "multiline_script": 211,
+          "shell_pipeline": 129,
+          "subshell_or_group": 206
+        },
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 20964,
+          "point": 31446,
+          "upper": 41928
+        }
+      },
+      {
+        "confidence": {
+          "opaque": 20
+        },
+        "distinct_sessions": 4,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 20
+        },
+        "feature_counts": {
+          "contains_boolean_chain": 10,
+          "contains_command_sequence": 1,
+          "contains_grouping": 20,
+          "contains_pipeline": 3
+        },
+        "matched_output_invocations": 20,
+        "reason": "subshell_or_group",
+        "requested_commands": 20,
+        "secondary_reason_counts": {
+          "boolean_chain": 10,
+          "command_sequence": 1,
+          "shell_pipeline": 3
+        },
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 598,
+          "point": 897,
+          "upper": 1196
+        }
+      },
+      {
+        "confidence": {
+          "opaque": 3,
+          "partial": 136
+        },
+        "distinct_sessions": 5,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 139
+        },
+        "feature_counts": {
+          "contains_boolean_chain": 16,
+          "contains_command_sequence": 139,
+          "contains_multiline": 2,
+          "contains_pipeline": 51
+        },
+        "matched_output_invocations": 118,
+        "reason": "command_sequence",
+        "requested_commands": 139,
+        "secondary_reason_counts": {
+          "boolean_chain": 16,
+          "multiline_script": 2,
+          "shell_pipeline": 51
+        },
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 3690,
+          "point": 5535,
+          "upper": 7380
+        }
+      },
+      {
+        "confidence": {
+          "opaque": 18,
+          "partial": 773
+        },
+        "distinct_sessions": 7,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 789,
+          "shell_batch": 2
+        },
+        "feature_counts": {
+          "contains_boolean_chain": 791,
+          "contains_leading_assignment": 6,
+          "contains_multiline": 2,
+          "contains_pipeline": 101
+        },
+        "matched_output_invocations": 721,
+        "reason": "boolean_chain",
+        "requested_commands": 791,
+        "secondary_reason_counts": {
+          "environment_assignment": 6,
+          "multiline_script": 2,
+          "shell_pipeline": 101
+        },
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 19593,
+          "point": 29389,
+          "upper": 39186
+        }
+      },
+      {
+        "confidence": {
+          "opaque": 4,
+          "partial": 284
+        },
+        "distinct_sessions": 7,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 283,
+          "shell_batch": 5
+        },
+        "feature_counts": {
+          "contains_leading_assignment": 2,
+          "contains_multiline": 1,
+          "contains_pipeline": 288
+        },
+        "matched_output_invocations": 263,
+        "reason": "shell_pipeline",
+        "requested_commands": 288,
+        "secondary_reason_counts": {
+          "environment_assignment": 2,
+          "multiline_script": 1
+        },
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 6118,
+          "point": 9176,
+          "upper": 12235
+        }
+      },
+      {
+        "confidence": {
+          "partial": 15
+        },
+        "distinct_sessions": 3,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 15
+        },
+        "feature_counts": {
+          "contains_multiline": 15
+        },
+        "matched_output_invocations": 15,
+        "reason": "multiline_script",
+        "requested_commands": 15,
+        "secondary_reason_counts": {},
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 1421,
+          "point": 2132,
+          "upper": 2842
+        }
+      },
+      {
+        "confidence": {
+          "high": 106,
+          "opaque": 141
+        },
+        "distinct_sessions": 3,
+        "exclusively_attributable_output": {
+          "captured_lines": 1825,
+          "captured_model_visible_bytes": 166832,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 27806,
+            "point": 41708,
+            "upper": 55611
+          },
+          "matched_output_count": 105,
+          "max_bytes": 12502,
+          "median_bytes": 406,
+          "p90_bytes": 7036,
+          "p95_bytes": 7420,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 7,
+            "success": 47,
+            "unknown": 51
+          },
+          "structural_feature_counts": {
+            "assertion_location": 2,
+            "stack_trace": 7,
+            "success_lines": 7,
+            "timestamps": 3
+          }
+        },
+        "execution_forms": {
+          "direct": 246,
+          "shell_batch": 1
+        },
+        "feature_counts": {
+          "contains_leading_assignment": 247
+        },
+        "matched_output_invocations": 247,
+        "reason": "environment_assignment",
+        "requested_commands": 247,
+        "secondary_reason_counts": {},
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 6401,
+          "point": 9602,
+          "upper": 12802
+        }
+      },
+      {
+        "confidence": {
+          "opaque": 1
+        },
+        "distinct_sessions": 1,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 1
+        },
+        "feature_counts": {},
+        "matched_output_invocations": 1,
+        "reason": "unsupported_quote_or_lexer",
+        "requested_commands": 1,
+        "secondary_reason_counts": {},
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 43,
+          "point": 65,
+          "upper": 86
+        }
+      },
+      {
+        "confidence": {
+          "opaque": 2
+        },
+        "distinct_sessions": 1,
+        "exclusively_attributable_output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "execution_forms": {
+          "direct": 2
+        },
+        "feature_counts": {},
+        "matched_output_invocations": 1,
+        "reason": "unknown_or_other",
+        "requested_commands": 2,
+        "secondary_reason_counts": {},
+        "source_command_token_range": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 8,
+          "point": 11,
+          "upper": 15
+        }
+      }
+    ],
+    "reconciliation": {
+      "commands_without_primary_reason": 1273,
+      "coverage_opaque_subcommands": 2117,
+      "reason_classified_commands": 2223,
+      "reason_high_confidence_recovered": 106,
+      "reason_non_high_confidence": 2117,
+      "reason_partial_syntactic": 1414,
+      "reason_unresolved_opaque": 703,
+      "reconciles_to_opaque_subcommands": true
+    },
+    "semantics_version": 1,
+    "summary": {
+      "exclusively_attributed_output_bytes": 3801724,
+      "high_confidence_family_coverage": 0.394451,
+      "high_confidence_single": 1379,
+      "legacy_v1_opaque_commands": 2225,
+      "legacy_v1_opaque_invocations": 2221,
+      "legacy_v1_opaque_recovered_high_confidence": 117,
+      "legacy_v1_opaque_share": 0.636442,
+      "partial_syntactic": 1414,
+      "partial_syntactic_invocations": 1412,
+      "partial_syntax_coverage": 0.404462,
+      "requested_commands": 3496,
+      "shell_invocations": 3346,
+      "still_unattributable_output_bytes": 6666293,
+      "strict_opaque_invocations": 703,
+      "unattributed_commands": 2117,
+      "unattributed_invocations": 2113,
+      "unresolved_opaque": 703,
+      "unresolved_opaque_share": 0.201087
+    },
+    "syntactic_segments": {
+      "control_positions": {
+        "boolean_right": 1517,
+        "first": 1414,
+        "pipeline_stage": 720,
+        "sequence_next": 369
+      },
+      "occurrence_count": 4020,
+      "top_families": [
+        {
+          "candidate_id": "filesystem_read",
+          "family": "sed",
+          "shape": "sed -n <arg> <arg>",
+          "syntactic_occurrences": 632
+        },
+        {
+          "candidate_id": "git_status",
+          "family": "git",
+          "shape": "git status --short --branch",
+          "syntactic_occurrences": 185
+        },
+        {
+          "candidate_id": "filesystem_read",
+          "family": "sed",
+          "shape": "sed -n <arg>",
+          "syntactic_occurrences": 172
+        },
+        {
+          "candidate_id": "rg_grep",
+          "family": "rg",
+          "shape": "rg -n <pattern> <paths>",
+          "syntactic_occurrences": 162
+        },
+        {
+          "candidate_id": null,
+          "family": "true",
+          "shape": "true",
+          "syntactic_occurrences": 140
+        },
+        {
+          "candidate_id": "filesystem_read",
+          "family": "head",
+          "shape": "head -<n>",
+          "syntactic_occurrences": 115
+        },
+        {
+          "candidate_id": "git_diff",
+          "family": "git",
+          "shape": "git diff --check",
+          "syntactic_occurrences": 109
+        },
+        {
+          "candidate_id": null,
+          "family": "sort",
+          "shape": "sort",
+          "syntactic_occurrences": 107
+        },
+        {
+          "candidate_id": "git_diff",
+          "family": "git",
+          "shape": "git diff --stat",
+          "syntactic_occurrences": 73
+        },
+        {
+          "candidate_id": "filesystem_read",
+          "family": "cat",
+          "shape": "cat <arg>",
+          "syntactic_occurrences": 63
+        },
+        {
+          "candidate_id": "filesystem_read",
+          "family": "tail",
+          "shape": "tail -<n>",
+          "syntactic_occurrences": 60
+        },
+        {
+          "candidate_id": null,
+          "family": "printf",
+          "shape": "printf <arg>",
+          "syntactic_occurrences": 58
+        },
+        {
+          "candidate_id": "git_status",
+          "family": "git",
+          "shape": "git status --short",
+          "syntactic_occurrences": 52
+        },
+        {
+          "candidate_id": "rg_grep",
+          "family": "rg",
+          "shape": "rg <pattern>",
+          "syntactic_occurrences": 48
+        },
+        {
+          "candidate_id": "git_history",
+          "family": "git",
+          "shape": "git log -<n> --oneline --decorate",
+          "syntactic_occurrences": 44
+        },
+        {
+          "candidate_id": null,
+          "family": "git",
+          "shape": "git rev-parse",
+          "syntactic_occurrences": 41
+        },
+        {
+          "candidate_id": null,
+          "family": "git",
+          "shape": "git add",
+          "syntactic_occurrences": 40
+        },
+        {
+          "candidate_id": "git_diff",
+          "family": "git",
+          "shape": "git diff",
+          "syntactic_occurrences": 39
+        },
+        {
+          "candidate_id": null,
+          "family": "nl",
+          "shape": "nl -ba <arg>",
+          "syntactic_occurrences": 39
+        },
+        {
+          "candidate_id": null,
+          "family": "df",
+          "shape": "df -h <arg>",
+          "syntactic_occurrences": 34
+        },
+        {
+          "candidate_id": null,
+          "family": "jq",
+          "shape": "jq -r <arg> <arg>",
+          "syntactic_occurrences": 34
+        },
+        {
+          "candidate_id": "git_diff",
+          "family": "git",
+          "shape": "git diff --cached --check",
+          "syntactic_occurrences": 32
+        },
+        {
+          "candidate_id": null,
+          "family": "jq",
+          "shape": "jq <arg>",
+          "syntactic_occurrences": 31
+        },
+        {
+          "candidate_id": "filesystem_read",
+          "family": "du",
+          "shape": "du -sh <arg>",
+          "syntactic_occurrences": 30
+        },
+        {
+          "candidate_id": null,
+          "family": "git",
+          "shape": "git commit -m",
+          "syntactic_occurrences": 28
+        },
+        {
+          "candidate_id": null,
+          "family": "curl",
+          "shape": "curl -fsS <arg>",
+          "syntactic_occurrences": 26
+        },
+        {
+          "candidate_id": "rg_grep",
+          "family": "rg",
+          "shape": "rg -i <pattern>",
+          "syntactic_occurrences": 23
+        },
+        {
+          "candidate_id": "git_diff",
+          "family": "git",
+          "shape": "git diff --cached --stat",
+          "syntactic_occurrences": 22
+        },
+        {
+          "candidate_id": null,
+          "family": "ps",
+          "shape": "ps -eo <arg>",
+          "syntactic_occurrences": 21
+        },
+        {
+          "candidate_id": null,
+          "family": "sort",
+          "shape": "sort -h",
+          "syntactic_occurrences": 20
+        }
+      ],
+      "warning": "Syntactic segments are possibilities inside one originating shell invocation, not proof that each executable ran."
+    },
+    "wrappers_recovered": {
+      "timeout": 1
+    }
   },
   "output_measurement": {
     "binary_control_output_records": 0,
     "cache_status": "not_measured",
+    "exclusive_command_output_bytes": 3801724,
     "observed_model_visible_output": {
-      "captured_lines": 188927,
-      "captured_model_visible_bytes": 10162389,
+      "captured_lines": 195279,
+      "captured_model_visible_bytes": 10468017,
       "estimated_observation_tokens": {
         "confidence": "heuristic_bytes_per_token",
-        "lower": 1693732,
-        "point": 2540598,
-        "upper": 3387463
+        "lower": 1744670,
+        "point": 2617005,
+        "upper": 3489339
       },
-      "matched_output_count": 3107,
+      "matched_output_count": 3134,
       "max_bytes": 40227,
-      "median_bytes": 665,
-      "p90_bytes": 10005,
-      "p95_bytes": 16167,
+      "median_bytes": 675,
+      "p90_bytes": 10100,
+      "p95_bytes": 16792,
       "provider_measured_uncached_input_tokens": null,
       "separate_stream_bytes": 0,
       "separate_stream_observations": 0,
       "status_counts": {
-        "failed": 189,
-        "success": 2470,
-        "unknown": 448
+        "failed": 201,
+        "success": 2475,
+        "unknown": 458
       },
       "structural_feature_counts": {
         "ansi": 14,
-        "assertion_location": 295,
+        "assertion_location": 298,
         "git_hunk": 54,
         "repetitive_lines": 10,
-        "stack_trace": 83,
-        "success_lines": 253,
+        "stack_trace": 84,
+        "success_lines": 260,
         "timestamps": 93,
-        "truncated": 118,
-        "warnings": 90
+        "truncated": 119,
+        "warnings": 91
       }
     },
     "provider_measured_uncached_input_tokens": null,
-    "total_attributed_output_bytes": 10162389,
-    "truncated_output_records": 118
+    "still_unattributable_output_bytes": 6666293,
+    "total_attributed_output_bytes": 10468017,
+    "truncated_output_records": 119
   },
   "privacy": {
     "exact_paths_included": false,
@@ -2230,79 +3166,80 @@
     "raw_commands_included": false,
     "raw_outputs_included": false
   },
-  "schema_version": 1,
+  "schema_version": 2,
   "smallest_safe_initial_set": [
     "rust_test_success",
     "compiler_linter"
   ],
   "terse_adapters": [
     {
-      "calls": 108,
+      "calls": 116,
       "candidate_id": "rust_test_success",
-      "delayed_seq_calls": 61,
+      "delayed_seq_calls": 63,
       "distinct_sessions": 4,
       "edge_cases": "Doc tests, nextest, ignored tests, and doctest failures",
       "fallback": "Retain warnings and all nonzero-exit output",
       "implementation_complexity": "medium",
       "information_loss_risks": "Hiding package-specific warnings or ignored-test context",
-      "matched_output_count": 47,
+      "matched_output_count": 53,
       "observed_output": {
-        "captured_lines": 2164,
-        "captured_model_visible_bytes": 120335,
+        "captured_lines": 2335,
+        "captured_model_visible_bytes": 138942,
         "estimated_observation_tokens": {
           "confidence": "heuristic_bytes_per_token",
-          "lower": 20056,
-          "point": 30084,
-          "upper": 40112
+          "lower": 23157,
+          "point": 34736,
+          "upper": 46314
         },
-        "matched_output_count": 47,
-        "max_bytes": 10075,
-        "median_bytes": 1557,
+        "matched_output_count": 53,
+        "max_bytes": 12502,
+        "median_bytes": 1462,
         "p90_bytes": 5728,
-        "p95_bytes": 7201,
+        "p95_bytes": 9351,
         "provider_measured_uncached_input_tokens": null,
         "separate_stream_bytes": 0,
         "separate_stream_observations": 0,
         "status_counts": {
-          "failed": 14,
-          "success": 33
+          "failed": 15,
+          "success": 37,
+          "unknown": 1
         },
         "structural_feature_counts": {
           "assertion_location": 7,
-          "stack_trace": 10,
-          "success_lines": 43,
+          "stack_trace": 11,
+          "success_lines": 48,
           "warnings": 3
         }
       },
-      "observed_output_bytes": 120335,
+      "observed_output_bytes": 138942,
       "safety_class": "safe_to_aggregate",
       "simulation": {
         "estimated_observation_token_reduction": {
           "confidence": "heuristic_bytes_per_token",
-          "lower": 11330,
-          "point": 16995,
-          "upper": 22660
+          "lower": 11913,
+          "point": 17869,
+          "upper": 23825
         },
         "fresh_input_confidence": "unverified_cache_status",
         "per_transformable_invocation_token_reduction": {
           "confidence": "heuristic_bytes_per_token",
-          "lower": 344,
-          "point": 515,
-          "upper": 687
+          "lower": 322,
+          "point": 483,
+          "upper": 644
         },
-        "removed_observed_bytes": 67979,
+        "removed_observed_bytes": 71473,
         "status": "measured_on_observed_output",
-        "transformable_output_count": 33,
+        "transformable_output_count": 37,
         "transformations": {
-          "test_success": 33
+          "test_success": 37
         }
       },
       "title": "Cargo test successful output"
     },
     {
-      "calls": 40,
+      "calls": 41,
       "candidate_id": "compiler_linter",
-      "delayed_seq_calls": 24,
+      "delayed_seq_calls": 25,
       "distinct_sessions": 5,
       "edge_cases": "Warnings, notes, dependency errors, and machine-readable formats",
       "fallback": "Preserve any diagnostic text; aggregate only clean success",
@@ -2362,7 +3299,7 @@
       "title": "Compiler / linter output"
     },
     {
-      "calls": 118,
+      "calls": 121,
       "candidate_id": "rg_grep",
       "delayed_seq_calls": 0,
       "distinct_sessions": 6,
@@ -2370,19 +3307,19 @@
       "fallback": "Byte-for-byte passthrough on parse or encoding failure",
       "implementation_complexity": "low",
       "information_loss_risks": "Losing match context or stable result ordering",
-      "matched_output_count": 93,
+      "matched_output_count": 96,
       "observed_output": {
-        "captured_lines": 3885,
-        "captured_model_visible_bytes": 379950,
+        "captured_lines": 3935,
+        "captured_model_visible_bytes": 382226,
         "estimated_observation_tokens": {
           "confidence": "heuristic_bytes_per_token",
-          "lower": 63325,
-          "point": 94988,
-          "upper": 126650
+          "lower": 63705,
+          "point": 95557,
+          "upper": 127409
         },
-        "matched_output_count": 93,
+        "matched_output_count": 96,
         "max_bytes": 40227,
-        "median_bytes": 1548,
+        "median_bytes": 1530,
         "p90_bytes": 10307,
         "p95_bytes": 19090,
         "provider_measured_uncached_input_tokens": null,
@@ -2390,8 +3327,8 @@
         "separate_stream_observations": 0,
         "status_counts": {
           "failed": 9,
-          "success": 69,
-          "unknown": 15
+          "success": 70,
+          "unknown": 17
         },
         "structural_feature_counts": {
           "assertion_location": 13,
@@ -2400,7 +3337,7 @@
           "warnings": 6
         }
       },
-      "observed_output_bytes": 379950,
+      "observed_output_bytes": 382226,
       "safety_class": "safe_to_aggregate",
       "simulation": {
         "estimated_observation_token_reduction": {
@@ -2424,39 +3361,43 @@
       "title": "rg / grep output"
     },
     {
-      "calls": 11,
+      "calls": 59,
       "candidate_id": "pytest_success",
       "delayed_seq_calls": 0,
-      "distinct_sessions": 1,
+      "distinct_sessions": 2,
       "edge_cases": "Warnings, skips, xfails, collection errors, and plugin output",
       "fallback": "Retain summaries/warnings; passthrough every failing run",
       "implementation_complexity": "medium",
       "information_loss_risks": "Removing a warning that later explains a failure",
-      "matched_output_count": 11,
+      "matched_output_count": 59,
       "observed_output": {
-        "captured_lines": 195,
-        "captured_model_visible_bytes": 17765,
+        "captured_lines": 1040,
+        "captured_model_visible_bytes": 96205,
         "estimated_observation_tokens": {
           "confidence": "heuristic_bytes_per_token",
-          "lower": 2961,
-          "point": 4442,
-          "upper": 5922
+          "lower": 16035,
+          "point": 24052,
+          "upper": 32069
         },
-        "matched_output_count": 11,
-        "max_bytes": 1965,
-        "median_bytes": 1789,
-        "p90_bytes": 1837,
-        "p95_bytes": 1965,
+        "matched_output_count": 59,
+        "max_bytes": 9554,
+        "median_bytes": 1103,
+        "p90_bytes": 3999,
+        "p95_bytes": 7401,
         "provider_measured_uncached_input_tokens": null,
         "separate_stream_bytes": 0,
         "separate_stream_observations": 0,
         "status_counts": {
-          "success": 2,
-          "unknown": 9
+          "failed": 6,
+          "success": 30,
+          "unknown": 23
         },
-        "structural_feature_counts": {}
+        "structural_feature_counts": {
+          "stack_trace": 6,
+          "success_lines": 1
+        }
       },
-      "observed_output_bytes": 17765,
+      "observed_output_bytes": 96205,
       "safety_class": "safe_to_aggregate",
       "simulation": {
         "estimated_observation_token_reduction": {
@@ -2480,7 +3421,7 @@
       "title": "pytest successful output"
     },
     {
-      "calls": 4,
+      "calls": 8,
       "candidate_id": "js_test_success",
       "delayed_seq_calls": 0,
       "distinct_sessions": 1,
@@ -2488,19 +3429,19 @@
       "fallback": "Keep summaries and warnings; passthrough failures",
       "implementation_complexity": "medium",
       "information_loss_risks": "Losing suite names or flaky-test warnings",
-      "matched_output_count": 4,
+      "matched_output_count": 8,
       "observed_output": {
-        "captured_lines": 293,
-        "captured_model_visible_bytes": 8048,
+        "captured_lines": 497,
+        "captured_model_visible_bytes": 13139,
         "estimated_observation_tokens": {
           "confidence": "heuristic_bytes_per_token",
-          "lower": 1342,
-          "point": 2012,
-          "upper": 2683
+          "lower": 2190,
+          "point": 3285,
+          "upper": 4380
         },
-        "matched_output_count": 4,
+        "matched_output_count": 8,
         "max_bytes": 3275,
-        "median_bytes": 1748,
+        "median_bytes": 1593,
         "p90_bytes": 3275,
         "p95_bytes": 3275,
         "provider_measured_uncached_input_tokens": null,
@@ -2508,13 +3449,13 @@
         "separate_stream_observations": 0,
         "status_counts": {
           "failed": 1,
-          "success": 3
+          "success": 7
         },
         "structural_feature_counts": {
-          "assertion_location": 2
+          "assertion_location": 4
         }
       },
-      "observed_output_bytes": 8048,
+      "observed_output_bytes": 13139,
       "safety_class": "safe_to_aggregate",
       "simulation": {
         "estimated_observation_token_reduction": {
@@ -2538,7 +3479,7 @@
       "title": "JavaScript test successful output"
     },
     {
-      "calls": 11,
+      "calls": 13,
       "candidate_id": "go_test_success",
       "delayed_seq_calls": 0,
       "distinct_sessions": 1,
@@ -2546,17 +3487,17 @@
       "fallback": "Retain one summary per package and all failures",
       "implementation_complexity": "low",
       "information_loss_risks": "Dropping package names needed to select a retry",
-      "matched_output_count": 11,
+      "matched_output_count": 13,
       "observed_output": {
-        "captured_lines": 113,
-        "captured_model_visible_bytes": 5403,
+        "captured_lines": 129,
+        "captured_model_visible_bytes": 6169,
         "estimated_observation_tokens": {
           "confidence": "heuristic_bytes_per_token",
-          "lower": 901,
-          "point": 1351,
-          "upper": 1801
+          "lower": 1029,
+          "point": 1543,
+          "upper": 2057
         },
-        "matched_output_count": 11,
+        "matched_output_count": 13,
         "max_bytes": 1631,
         "median_bytes": 383,
         "p90_bytes": 522,
@@ -2566,13 +3507,13 @@
         "separate_stream_observations": 0,
         "status_counts": {
           "failed": 1,
-          "success": 10
+          "success": 12
         },
         "structural_feature_counts": {
           "stack_trace": 1
         }
       },
-      "observed_output_bytes": 5403,
+      "observed_output_bytes": 6169,
       "safety_class": "safe_to_aggregate",
       "simulation": {
         "estimated_observation_token_reduction": {
@@ -2596,36 +3537,36 @@
       "title": "Go test successful output"
     },
     {
-      "calls": 376,
+      "calls": 374,
       "candidate_id": "filesystem_read",
-      "delayed_seq_calls": 0,
+      "delayed_seq_calls": 1,
       "distinct_sessions": 8,
       "edge_cases": "Binary files, encoding errors, globs, and context-dependent source",
       "fallback": "Always passthrough",
       "implementation_complexity": "high",
       "information_loss_risks": "Silently omitting content the model needed to inspect",
-      "matched_output_count": 353,
+      "matched_output_count": 350,
       "observed_output": {
-        "captured_lines": 46644,
-        "captured_model_visible_bytes": 2347350,
+        "captured_lines": 46683,
+        "captured_model_visible_bytes": 2353396,
         "estimated_observation_tokens": {
           "confidence": "heuristic_bytes_per_token",
-          "lower": 391225,
-          "point": 586838,
-          "upper": 782450
+          "lower": 392233,
+          "point": 588349,
+          "upper": 784466
         },
-        "matched_output_count": 353,
+        "matched_output_count": 350,
         "max_bytes": 40215,
-        "median_bytes": 4202,
+        "median_bytes": 4211,
         "p90_bytes": 16243,
         "p95_bytes": 22066,
         "provider_measured_uncached_input_tokens": null,
         "separate_stream_bytes": 0,
         "separate_stream_observations": 0,
         "status_counts": {
-          "failed": 6,
-          "success": 330,
-          "unknown": 17
+          "failed": 4,
+          "success": 327,
+          "unknown": 19
         },
         "structural_feature_counts": {
           "assertion_location": 75,
@@ -2637,7 +3578,7 @@
           "warnings": 4
         }
       },
-      "observed_output_bytes": 2347350,
+      "observed_output_bytes": 2353396,
       "safety_class": "passthrough",
       "simulation": {
         "estimated_observation_token_reduction": {
@@ -2722,10 +3663,10 @@
       "title": "git diff"
     },
     {
-      "calls": 25,
+      "calls": 26,
       "candidate_id": "git_history",
-      "delayed_seq_calls": 0,
-      "distinct_sessions": 3,
+      "delayed_seq_calls": 1,
+      "distinct_sessions": 4,
       "edge_cases": "Merge topology, rename detection, binary files, and custom formats",
       "fallback": "Preserve full output unless a proven lossless formatter is selected",
       "implementation_complexity": "medium",
@@ -2780,9 +3721,9 @@
       "title": "git log / show --stat"
     },
     {
-      "calls": 43,
+      "calls": 44,
       "candidate_id": "git_status",
-      "delayed_seq_calls": 8,
+      "delayed_seq_calls": 9,
       "distinct_sessions": 4,
       "edge_cases": "Branch/upstream advice, renames, conflicts, and porcelain formats",
       "fallback": "Only strip control codes; otherwise preserve output",

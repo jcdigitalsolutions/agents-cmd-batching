@@ -90,7 +90,7 @@ python3 scripts/analyze_codex_commands.py \
 
 The analyzer writes schema-versioned command reports plus private `opaque_command_diagnostics.{md,json}` files. It never executes extracted commands, reads credentials, or uploads session data. Partial syntactic segments are not treated as evidence that every segment ran. Its byte-derived token ranges are estimates, not provider-measured uncached input. See [docs/codex-command-frequency.md](docs/codex-command-frequency.md) for the report schema, attribution rules, privacy boundaries, and methodology.
 
-The reviewed aggregate report from this repository's initial bounded run is available in [command_frequency_report.md](command_frequency_report.md) and [command_frequency_report.json](command_frequency_report.json).
+The reviewed schema-v2 aggregate report is available in [command_frequency_report.md](command_frequency_report.md) and [command_frequency_report.json](command_frequency_report.json). Detailed sanitized reason and syntax diagnostics are in [opaque_command_diagnostics.md](opaque_command_diagnostics.md) and [opaque_command_diagnostics.json](opaque_command_diagnostics.json).
 
 ## Research
 

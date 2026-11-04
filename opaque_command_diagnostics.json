@@ -1,0 +1,985 @@
+{
+  "analysis_scope": {
+    "date_window": {
+      "inclusive": true,
+      "since": "2026-11-01",
+      "until": null
+    },
+    "include_archived": false,
+    "limits": {
+      "max_file_bytes": 33554432,
+      "max_files": 12,
+      "max_line_bytes": 16777216,
+      "max_total_bytes": 268435456
+    },
+    "source_categories": {
+      "sessions": 12
+    }
+  },
+  "confidence": [
+    {
+      "confidence": "high_confidence_single",
+      "requested_commands": 1379,
+      "share": 0.394451
+    },
+    {
+      "confidence": "partial_syntactic",
+      "requested_commands": 1414,
+      "share": 0.404462
+    },
+    {
+      "confidence": "unresolved_opaque",
+      "requested_commands": 703,
+      "share": 0.201087
+    }
+  ],
+  "confidence_levels": [
+    "high_confidence_single",
+    "partial_syntactic",
+    "unresolved_opaque"
+  ],
+  "coverage": {
+    "legacy_v1_opaque_subcommands": 2225,
+    "matched_shell_invocations": 3134,
+    "partial_syntactic_subcommands": 1414,
+    "processed_files": 12,
+    "records": 39321,
+    "requested_underlying_subcommands": 3496,
+    "sessions": 10,
+    "shell_tool_invocations": 3346,
+    "strict_opaque_subcommands": 703
+  },
+  "limitations": [
+    "Session history size does not establish cache status or billed cost.",
+    "Unmatched, composite, truncated, malformed, and unsupported records reduce confidence.",
+    "Normalized shapes intentionally omit command arguments and exact paths.",
+    "The analyzer does not execute, replay, upload, or inspect workspace contents.",
+    "A syntactic segment is not evidence that the executable ran or produced output.",
+    "The batching-pair count is not a claim that those calls could or should be batched."
+  ],
+  "methodology": {
+    "raw_commands_present": false,
+    "raw_outputs_present": false,
+    "read_only": true,
+    "reason_taxonomy_only": true,
+    "shell_execution": false,
+    "syntactic_segments_are_execution_evidence": false
+  },
+  "output_ownership": {
+    "exclusively_attributable_matched_outputs": {
+      "captured_lines": 68903,
+      "captured_model_visible_bytes": 3801724,
+      "estimated_observation_tokens": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 633621,
+        "point": 950431,
+        "upper": 1267242
+      },
+      "matched_output_count": 1068,
+      "max_bytes": 40227,
+      "median_bytes": 1088,
+      "p90_bytes": 10725,
+      "p95_bytes": 15452,
+      "provider_measured_uncached_input_tokens": null,
+      "separate_stream_bytes": 0,
+      "separate_stream_observations": 0,
+      "status_counts": {
+        "failed": 67,
+        "success": 828,
+        "unknown": 173
+      },
+      "structural_feature_counts": {
+        "ansi": 2,
+        "assertion_location": 122,
+        "git_hunk": 12,
+        "repetitive_lines": 2,
+        "stack_trace": 22,
+        "success_lines": 103,
+        "timestamps": 38,
+        "truncated": 40,
+        "warnings": 32
+      }
+    },
+    "matched_invocation_output_bytes": 10468017,
+    "rule": "Composite, partial, ambiguous, unmatched, and wrapper-batch outputs remain owned by the originating invocation and are not multiplied across syntactic segments.",
+    "still_unattributable_output_bytes": 6666293
+  },
+  "privacy": {
+    "exact_paths_included": false,
+    "fingerprints_included": false,
+    "prompts_included": false,
+    "raw_commands_included": false,
+    "raw_outputs_included": false
+  },
+  "reason_by_execution_form": {
+    "boolean_chain": {
+      "direct": 789,
+      "shell_batch": 2
+    },
+    "command_sequence": {
+      "direct": 139
+    },
+    "environment_assignment": {
+      "direct": 246,
+      "shell_batch": 1
+    },
+    "multiline_script": {
+      "direct": 15
+    },
+    "null_byte_or_invalid": {},
+    "redirect_or_heredoc": {
+      "direct": 412,
+      "shell_batch": 2
+    },
+    "shell_function_or_control_flow": {
+      "direct": 241,
+      "shell_batch": 2
+    },
+    "shell_pipeline": {
+      "direct": 283,
+      "shell_batch": 5
+    },
+    "subshell_or_group": {
+      "direct": 20
+    },
+    "unknown_or_other": {
+      "direct": 2
+    },
+    "unsupported_quote_or_lexer": {
+      "direct": 1
+    },
+    "variable_or_command_expansion": {
+      "direct": 63
+    }
+  },
+  "reason_precedence": [
+    "null_byte_or_invalid",
+    "shell_function_or_control_flow",
+    "variable_or_command_expansion",
+    "redirect_or_heredoc",
+    "subshell_or_group",
+    "command_sequence",
+    "boolean_chain",
+    "shell_pipeline",
+    "multiline_script",
+    "environment_assignment",
+    "unsupported_quote_or_lexer",
+    "unknown_or_other"
+  ],
+  "reasons": [
+    {
+      "confidence": {},
+      "distinct_sessions": 0,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {},
+      "feature_counts": {},
+      "matched_output_invocations": 0,
+      "reason": "null_byte_or_invalid",
+      "requested_commands": 0,
+      "secondary_reason_counts": {},
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 0,
+        "point": 0,
+        "upper": 0
+      }
+    },
+    {
+      "confidence": {
+        "opaque": 243
+      },
+      "distinct_sessions": 7,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 241,
+        "shell_batch": 2
+      },
+      "feature_counts": {
+        "contains_boolean_chain": 35,
+        "contains_command_sequence": 144,
+        "contains_control_flow": 243,
+        "contains_expansion": 57,
+        "contains_grouping": 173,
+        "contains_heredoc": 168,
+        "contains_leading_assignment": 49,
+        "contains_multiline": 172,
+        "contains_pipeline": 47,
+        "contains_redirection": 13
+      },
+      "matched_output_invocations": 241,
+      "reason": "shell_function_or_control_flow",
+      "requested_commands": 243,
+      "secondary_reason_counts": {
+        "boolean_chain": 35,
+        "command_sequence": 144,
+        "environment_assignment": 49,
+        "multiline_script": 172,
+        "redirect_or_heredoc": 181,
+        "shell_pipeline": 47,
+        "subshell_or_group": 173,
+        "variable_or_command_expansion": 57
+      },
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 29591,
+        "point": 44386,
+        "upper": 59181
+      }
+    },
+    {
+      "confidence": {
+        "opaque": 63
+      },
+      "distinct_sessions": 6,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 63
+      },
+      "feature_counts": {
+        "contains_boolean_chain": 23,
+        "contains_command_sequence": 33,
+        "contains_expansion": 63,
+        "contains_grouping": 29,
+        "contains_heredoc": 4,
+        "contains_leading_assignment": 24,
+        "contains_multiline": 13,
+        "contains_pipeline": 19,
+        "contains_redirection": 32
+      },
+      "matched_output_invocations": 63,
+      "reason": "variable_or_command_expansion",
+      "requested_commands": 63,
+      "secondary_reason_counts": {
+        "boolean_chain": 23,
+        "command_sequence": 33,
+        "environment_assignment": 24,
+        "multiline_script": 13,
+        "redirect_or_heredoc": 36,
+        "shell_pipeline": 19,
+        "subshell_or_group": 29
+      },
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 5169,
+        "point": 7753,
+        "upper": 10337
+      }
+    },
+    {
+      "confidence": {
+        "opaque": 208,
+        "partial": 206
+      },
+      "distinct_sessions": 7,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 412,
+        "shell_batch": 2
+      },
+      "feature_counts": {
+        "contains_boolean_chain": 131,
+        "contains_command_sequence": 127,
+        "contains_grouping": 206,
+        "contains_heredoc": 197,
+        "contains_leading_assignment": 51,
+        "contains_multiline": 211,
+        "contains_pipeline": 129,
+        "contains_redirection": 217
+      },
+      "matched_output_invocations": 400,
+      "reason": "redirect_or_heredoc",
+      "requested_commands": 414,
+      "secondary_reason_counts": {
+        "boolean_chain": 131,
+        "command_sequence": 127,
+        "environment_assignment": 51,
+        "multiline_script": 211,
+        "shell_pipeline": 129,
+        "subshell_or_group": 206
+      },
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 20964,
+        "point": 31446,
+        "upper": 41928
+      }
+    },
+    {
+      "confidence": {
+        "opaque": 20
+      },
+      "distinct_sessions": 4,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 20
+      },
+      "feature_counts": {
+        "contains_boolean_chain": 10,
+        "contains_command_sequence": 1,
+        "contains_grouping": 20,
+        "contains_pipeline": 3
+      },
+      "matched_output_invocations": 20,
+      "reason": "subshell_or_group",
+      "requested_commands": 20,
+      "secondary_reason_counts": {
+        "boolean_chain": 10,
+        "command_sequence": 1,
+        "shell_pipeline": 3
+      },
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 598,
+        "point": 897,
+        "upper": 1196
+      }
+    },
+    {
+      "confidence": {
+        "opaque": 3,
+        "partial": 136
+      },
+      "distinct_sessions": 5,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 139
+      },
+      "feature_counts": {
+        "contains_boolean_chain": 16,
+        "contains_command_sequence": 139,
+        "contains_multiline": 2,
+        "contains_pipeline": 51
+      },
+      "matched_output_invocations": 118,
+      "reason": "command_sequence",
+      "requested_commands": 139,
+      "secondary_reason_counts": {
+        "boolean_chain": 16,
+        "multiline_script": 2,
+        "shell_pipeline": 51
+      },
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 3690,
+        "point": 5535,
+        "upper": 7380
+      }
+    },
+    {
+      "confidence": {
+        "opaque": 18,
+        "partial": 773
+      },
+      "distinct_sessions": 7,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 789,
+        "shell_batch": 2
+      },
+      "feature_counts": {
+        "contains_boolean_chain": 791,
+        "contains_leading_assignment": 6,
+        "contains_multiline": 2,
+        "contains_pipeline": 101
+      },
+      "matched_output_invocations": 721,
+      "reason": "boolean_chain",
+      "requested_commands": 791,
+      "secondary_reason_counts": {
+        "environment_assignment": 6,
+        "multiline_script": 2,
+        "shell_pipeline": 101
+      },
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 19593,
+        "point": 29389,
+        "upper": 39186
+      }
+    },
+    {
+      "confidence": {
+        "opaque": 4,
+        "partial": 284
+      },
+      "distinct_sessions": 7,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 283,
+        "shell_batch": 5
+      },
+      "feature_counts": {
+        "contains_leading_assignment": 2,
+        "contains_multiline": 1,
+        "contains_pipeline": 288
+      },
+      "matched_output_invocations": 263,
+      "reason": "shell_pipeline",
+      "requested_commands": 288,
+      "secondary_reason_counts": {
+        "environment_assignment": 2,
+        "multiline_script": 1
+      },
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 6118,
+        "point": 9176,
+        "upper": 12235
+      }
+    },
+    {
+      "confidence": {
+        "partial": 15
+      },
+      "distinct_sessions": 3,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 15
+      },
+      "feature_counts": {
+        "contains_multiline": 15
+      },
+      "matched_output_invocations": 15,
+      "reason": "multiline_script",
+      "requested_commands": 15,
+      "secondary_reason_counts": {},
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 1421,
+        "point": 2132,
+        "upper": 2842
+      }
+    },
+    {
+      "confidence": {
+        "high": 106,
+        "opaque": 141
+      },
+      "distinct_sessions": 3,
+      "exclusively_attributable_output": {
+        "captured_lines": 1825,
+        "captured_model_visible_bytes": 166832,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 27806,
+          "point": 41708,
+          "upper": 55611
+        },
+        "matched_output_count": 105,
+        "max_bytes": 12502,
+        "median_bytes": 406,
+        "p90_bytes": 7036,
+        "p95_bytes": 7420,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "failed": 7,
+          "success": 47,
+          "unknown": 51
+        },
+        "structural_feature_counts": {
+          "assertion_location": 2,
+          "stack_trace": 7,
+          "success_lines": 7,
+          "timestamps": 3
+        }
+      },
+      "execution_forms": {
+        "direct": 246,
+        "shell_batch": 1
+      },
+      "feature_counts": {
+        "contains_leading_assignment": 247
+      },
+      "matched_output_invocations": 247,
+      "reason": "environment_assignment",
+      "requested_commands": 247,
+      "secondary_reason_counts": {},
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 6401,
+        "point": 9602,
+        "upper": 12802
+      }
+    },
+    {
+      "confidence": {
+        "opaque": 1
+      },
+      "distinct_sessions": 1,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 1
+      },
+      "feature_counts": {},
+      "matched_output_invocations": 1,
+      "reason": "unsupported_quote_or_lexer",
+      "requested_commands": 1,
+      "secondary_reason_counts": {},
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 43,
+        "point": 65,
+        "upper": 86
+      }
+    },
+    {
+      "confidence": {
+        "opaque": 2
+      },
+      "distinct_sessions": 1,
+      "exclusively_attributable_output": {
+        "captured_lines": 0,
+        "captured_model_visible_bytes": 0,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "matched_output_count": 0,
+        "max_bytes": 0,
+        "median_bytes": 0,
+        "p90_bytes": 0,
+        "p95_bytes": 0,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {},
+        "structural_feature_counts": {}
+      },
+      "execution_forms": {
+        "direct": 2
+      },
+      "feature_counts": {},
+      "matched_output_invocations": 1,
+      "reason": "unknown_or_other",
+      "requested_commands": 2,
+      "secondary_reason_counts": {},
+      "source_command_token_range": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 8,
+        "point": 11,
+        "upper": 15
+      }
+    }
+  ],
+  "reconciliation": {
+    "commands_without_primary_reason": 1273,
+    "coverage_opaque_subcommands": 2117,
+    "reason_classified_commands": 2223,
+    "reason_high_confidence_recovered": 106,
+    "reason_non_high_confidence": 2117,
+    "reason_partial_syntactic": 1414,
+    "reason_unresolved_opaque": 703,
+    "reconciles_to_opaque_subcommands": true
+  },
+  "schema_version": 2,
+  "summary": {
+    "exclusively_attributed_output_bytes": 3801724,
+    "high_confidence_family_coverage": 0.394451,
+    "high_confidence_single": 1379,
+    "legacy_v1_opaque_commands": 2225,
+    "legacy_v1_opaque_invocations": 2221,
+    "legacy_v1_opaque_recovered_high_confidence": 117,
+    "legacy_v1_opaque_share": 0.636442,
+    "partial_syntactic": 1414,
+    "partial_syntactic_invocations": 1412,
+    "partial_syntax_coverage": 0.404462,
+    "requested_commands": 3496,
+    "shell_invocations": 3346,
+    "still_unattributable_output_bytes": 6666293,
+    "strict_opaque_invocations": 703,
+    "unattributed_commands": 2117,
+    "unattributed_invocations": 2113,
+    "unresolved_opaque": 703,
+    "unresolved_opaque_share": 0.201087
+  },
+  "syntactic_segments": {
+    "control_positions": {
+      "boolean_right": 1517,
+      "first": 1414,
+      "pipeline_stage": 720,
+      "sequence_next": 369
+    },
+    "occurrence_count": 4020,
+    "top_families": [
+      {
+        "candidate_id": "filesystem_read",
+        "family": "sed",
+        "shape": "sed -n <arg> <arg>",
+        "syntactic_occurrences": 632
+      },
+      {
+        "candidate_id": "git_status",
+        "family": "git",
+        "shape": "git status --short --branch",
+        "syntactic_occurrences": 185
+      },
+      {
+        "candidate_id": "filesystem_read",
+        "family": "sed",
+        "shape": "sed -n <arg>",
+        "syntactic_occurrences": 172
+      },
+      {
+        "candidate_id": "rg_grep",
+        "family": "rg",
+        "shape": "rg -n <pattern> <paths>",
+        "syntactic_occurrences": 162
+      },
+      {
+        "candidate_id": null,
+        "family": "true",
+        "shape": "true",
+        "syntactic_occurrences": 140
+      },
+      {
+        "candidate_id": "filesystem_read",
+        "family": "head",
+        "shape": "head -<n>",
+        "syntactic_occurrences": 115
+      },
+      {
+        "candidate_id": "git_diff",
+        "family": "git",
+        "shape": "git diff --check",
+        "syntactic_occurrences": 109
+      },
+      {
+        "candidate_id": null,
+        "family": "sort",
+        "shape": "sort",
+        "syntactic_occurrences": 107
+      },
+      {
+        "candidate_id": "git_diff",
+        "family": "git",
+        "shape": "git diff --stat",
+        "syntactic_occurrences": 73
+      },
+      {
+        "candidate_id": "filesystem_read",
+        "family": "cat",
+        "shape": "cat <arg>",
+        "syntactic_occurrences": 63
+      },
+      {
+        "candidate_id": "filesystem_read",
+        "family": "tail",
+        "shape": "tail -<n>",
+        "syntactic_occurrences": 60
+      },
+      {
+        "candidate_id": null,
+        "family": "printf",
+        "shape": "printf <arg>",
+        "syntactic_occurrences": 58
+      },
+      {
+        "candidate_id": "git_status",
+        "family": "git",
+        "shape": "git status --short",
+        "syntactic_occurrences": 52
+      },
+      {
+        "candidate_id": "rg_grep",
+        "family": "rg",
+        "shape": "rg <pattern>",
+        "syntactic_occurrences": 48
+      },
+      {
+        "candidate_id": "git_history",
+        "family": "git",
+        "shape": "git log -<n> --oneline --decorate",
+        "syntactic_occurrences": 44
+      },
+      {
+        "candidate_id": null,
+        "family": "git",
+        "shape": "git rev-parse",
+        "syntactic_occurrences": 41
+      },
+      {
+        "candidate_id": null,
+        "family": "git",
+        "shape": "git add",
+        "syntactic_occurrences": 40
+      },
+      {
+        "candidate_id": "git_diff",
+        "family": "git",
+        "shape": "git diff",
+        "syntactic_occurrences": 39
+      },
+      {
+        "candidate_id": null,
+        "family": "nl",
+        "shape": "nl -ba <arg>",
+        "syntactic_occurrences": 39
+      },
+      {
+        "candidate_id": null,
+        "family": "df",
+        "shape": "df -h <arg>",
+        "syntactic_occurrences": 34
+      },
+      {
+        "candidate_id": null,
+        "family": "jq",
+        "shape": "jq -r <arg> <arg>",
+        "syntactic_occurrences": 34
+      },
+      {
+        "candidate_id": "git_diff",
+        "family": "git",
+        "shape": "git diff --cached --check",
+        "syntactic_occurrences": 32
+      },
+      {
+        "candidate_id": null,
+        "family": "jq",
+        "shape": "jq <arg>",
+        "syntactic_occurrences": 31
+      },
+      {
+        "candidate_id": "filesystem_read",
+        "family": "du",
+        "shape": "du -sh <arg>",
+        "syntactic_occurrences": 30
+      },
+      {
+        "candidate_id": null,
+        "family": "git",
+        "shape": "git commit -m",
+        "syntactic_occurrences": 28
+      },
+      {
+        "candidate_id": null,
+        "family": "curl",
+        "shape": "curl -fsS <arg>",
+        "syntactic_occurrences": 26
+      },
+      {
+        "candidate_id": "rg_grep",
+        "family": "rg",
+        "shape": "rg -i <pattern>",
+        "syntactic_occurrences": 23
+      },
+      {
+        "candidate_id": "git_diff",
+        "family": "git",
+        "shape": "git diff --cached --stat",
+        "syntactic_occurrences": 22
+      },
+      {
+        "candidate_id": null,
+        "family": "ps",
+        "shape": "ps -eo <arg>",
+        "syntactic_occurrences": 21
+      },
+      {
+        "candidate_id": null,
+        "family": "sort",
+        "shape": "sort -h",
+        "syntactic_occurrences": 20
+      }
+    ],
+    "warning": "Syntactic segments are possibilities inside one originating shell invocation, not proof that each executable ran."
+  },
+  "title": "Codex opaque command diagnostics",
+  "wrappers_recovered": {
+    "timeout": 1
+  }
+}
