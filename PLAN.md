@@ -1,115 +1,80 @@
-# PLAN.md — Codex command history and tool-output research
+# PLAN.md — Investigate and reduce opaque Codex shell-command attribution
 
-## Objective, status and baseline
+## Status, objective and baseline
 
-**Planning artifact only.** This commit authorizes **only this PLAN.md**, not implementation. Repository: \`jcdigitalsolutions/agents-cmd-batching\`; target: \`main\`; inspected HEAD: \`0be829c56f1282cc8b3b97aea4d0fea3f8e01e53\` (\`Update LICENSE\`). Reverify latest remote main and reconcile changes before execution.
+**Planning artifact only. No implementation or report re-publication is authorized by this plan.** Repository: \`jcdigitalsolutions/agents-cmd-batching\`, target branch \`main\`, inspected remote HEAD **\`a8ebec1d97fbd89dab352da56fb09fb11cf9f23f\`** (\`feat(analysis): add Codex command usage report\`). Verify latest remote \`main\` before implementing; reconcile any relevant changes and show a revision if the parser/report architecture materially changes.
 
-Build a **read-only, offline, reproducible Python analyzer** of the user's local Codex session JSONL to answer: (1) which shell commands and tool families are most frequently invoked, directly and within \`delayed-seq\`; (2) how much **actual model-visible output** these commands return; (3) which deterministic **terse-only** command-output adapters merit implementation first, based on estimated avoidable **uncached input** and information-loss risk; (4) where existing command batching is used or might be applicable. Deliver Markdown and machine-readable JSON reports. Never equate output bytes with measured uncached tokens without validated usage and request boundaries. The session data is **not in GitHub**; run only with authorized local access. Do not upload/commit session histories or raw private reports.
+**Problem:** The published bounded observation in \`command_frequency_report.md\` analyzed 12 files / 10 sessions / 3,319 shell invocations (3,464 requested underlying commands), matching 93.6% of outputs, but classified **2,206 commands (63.7% of requested subcommands)** as \`<opaque>\`. These opaque commands account for **6,341,324 captured model-visible bytes**, limiting the evidential value of ranked prospective \`terse\` adapters. Source inspection confirms the analyzer deliberately treats shell operators, newline scripts, variable expansions and assignments as opaque; **the report does not yet establish what fraction belongs to each cause**. Do not guess the cause distribution or obtainable savings.
 
-**Single integrated workstream.** Extraction, event correlation, command grouping, privacy, output measurement and reporting share one typed representation. No artificial parallel workstreams or \`PLAN_*.md\` files. Do not implement the prospective runtime \`terse\` wrapper as part of this research.
+**Objective:** Investigate opaque cases using a read-only, privacy-safe diagnostic taxonomy; add a conservative shell-command attribution layer that recognizes high-confidence executable families within selected compound commands **without executing, modifying or evaluating commands**, and rerun a comparable bounded Codex history report. Improve adapter-priority evidence by recovering command/output attribution where defensible. Keep uncertain forms opaque; never infer that every syntactically present command executed. Preserve existing summary/report schema consumers or provide a documented additive/versioned migration.
 
-## Verified repository facts and implementation scope
+**Single integrated workstream.** Classifier, attribution model, output ownership, tests and report all depend on the same parser semantics. No \`PLAN_*.md\` needed.
 
-At baseline, the repo contains only \`delayed-seq\`, \`README.md\`, \`AGENTS_APPEND.md\`, \`REPORT.md\`, and \`LICENSE\`. There is no analysis executable or test framework.
+## Verified repository facts — exact implementation starting points
 
-**Read first, exact surfaces:**
-- \`README.md\` (1–84): standalone Python 3 stdlib wrapper, POSIX shell requirements, installation, published study limitations, no raw benchmark artifacts.
-- \`REPORT.md\` (1–113): existing 288-assignment controlled Go/Rust/Python/TypeScript/JavaScript benchmarking, weighted model \`U + 0.1*C + 5*O\`, uncertainty and raw-data privacy restrictions. **Do not modify** or misrepresent it as the new observational study.
-- \`AGENTS_APPEND.md\` (1–5): original tested batching selection instruction; **do not change**.
-- \`delayed-seq\`: \`SequenceConfig\` (~53), \`ShellCommandRunner.run\` (~142), \`run_sequence\` (~300+), \`_parser\` (~420+), \`main\` (~480+). Arguments after \`--\` are complete shell-command strings; commands run sequentially through \`sh\`, stop on failure, and have bounded delay, total deadline and cancellation. **Do not change its execution semantics.**
+At pinned HEAD:
 
-**Proposed implementation files and ownership:** \`scripts/analyze_codex_commands.py\` (Python standard library CLI, streaming JSONL, extraction and conservative parsing, output correlation, metrics, redaction, reports); \`tests/test_analyze_codex_commands.py\` (pytest with generated synthetic fixtures); \`docs/codex-command-frequency.md\` (methodology, explicit illustrative example, local invocation, limitations); a brief addition to \`README.md\`. Actual results \`command_frequency_report.md\` and \`command_frequency_report.json\` go into a user-chosen **local output directory**, preferably outside Git, and are not committed without explicit authorization. Pytest is acceptable for tests; production code has stdlib-only dependencies. If repository structure evolves, widen only for compilation/correctness and report deviations.
+- \`scripts/analyze_codex_commands.py\` (~2,258 lines) is a Python standard-library analyzer. Inspect exact symbols first rather than rereading the whole script:
+  - \`SHELL_OPERATORS\`, \`ASSIGNMENT_RE\`, \`SHELL_TOOL_NAMES\`, \`NATIVE_BATCH_TOOL_NAMES\` near lines 30–49.
+  - \`CommandView\`, \`ShellInvocation\`, \`ScanState\` near lines 114–184; \`OpaqueShell\`, \`JSLiteralParser\` near 310+.
+  - \`_mask_js_strings_and_comments\`, \`_extract_embedded_tool_calls\` (~528–593) for custom \`exec\` JavaScript envelopes, separate from shell parsing.
+  - \`_tokenize_simple_shell\` (~594–610): rejects newline/CR/NUL, tokens in \`SHELL_OPERATORS\`, \`$\`, backticks and lexer errors.
+  - \`_safe_family\`, \`_safe_option\`, \`_family_shape\` (~611–688): recognized family and privacy-safe normalized shape. \`_parse_simple_command\` (~689–702): converts unsupported forms into a single \`<opaque>\`/\`<opaque shell form>\` class; leading \`NAME=value\` assignments are rejected.
+  - \`_parse_delayed_tokens\` (~703–773), \`InvocationPlan\`, \`_plan_invocation\` (~774–820): distinguish \`delayed-seq\` shell wrapper, marked proxy batches and native \`delayed_seq\`; complex shell forms currently block batch recognition.
+  - \`_process_call_payload\`, \`_process_output_payload\` (~871–1175), \`scan_rollouts\` (~1342), \`_attach_outputs\` (~1500), \`_count_execution\` (~1557): correlated output, exact call IDs, execution status.
+  - \`_candidate_id\` (~1459), \`_add_to_bucket\` (~1528), \`build_report\` (~1607), \`render_markdown\` (~1995), CLI parser (~2187): aggregation, adapter ranking and reports. \`_add_to_bucket\` attributes output only to **direct single-subcommand** calls; composite output is not multiplied across inferred subcommands.
+- \`python_tests/test_analyze_codex_commands.py\` (~586 lines) uses \`unittest.TestCase\` with synthetic JSONL. Inspect especially \`test_batch_forms_count_invocations_without_multiplying_output\` (~212), \`test_opaque_shell_forms_are_not_misattributed\` (~280), \`test_terse_ranking_uses_output_size_and_marks_high_risk_diff\` (~512), privacy/determinism tests (~539+). Continue using the existing unittest style; do not migrate frameworks incidentally.
+- \`docs/codex-command-frequency.md\` (~160 lines) documents intentional opacity for pipelines/\`&&\`/\`;\`/redirects/subshells/assignments/substitution/newlines and cautions shell output bytes aren't measured uncached tokens. \`README.md\` links to analyzer. \`REPORT.md\` is the distinct prior 288-run batching benchmark and is read-only for this task.
+- \`command_frequency_report.{md,json}\` are **currently committed aggregate reports** based on a bounded local dataset. Published: 2,206 opaque commands, 6.34 MB opaque output, 229 each for \`git\`/\`sed\`, 118 \`rg\`, 108 \`cargo test\`, 104 \`cat\`. Replacing published outputs requires separate review/approval; regenerating locally is not permission to commit raw or derived session data.
+- The CLI reads local Codex rollout JSONL offline, bounds file/line/total bytes, skips symlinks and never executes extracted commands. Exact session/call-ID matching and duplicate handling must remain intact. Output may contain secrets: **never print raw input commands or captured output in diagnostics or reports**.
 
-## Source format and research caveats
+## Investigation phase — before expanding the parser
 
-Typical Codex rollout history: \`\${CODEX_HOME:-~/.codex}/sessions/YYYY/MM/DD/rollout-*.jsonl\`; optionally \`\${CODEX_HOME:-~/.codex}/archived_sessions/\`. Public format pointers: https://github.com/openai/codex/discussions/12668 and https://docs.rs/crate/txcript/latest/source/docs/formats/codex.md . These are **format hypotheses**, not proof of the user's current installed Codex schema. Inspect a bounded representative local sample **without exposing its content** before finalizing parsing.
+1. Establish a **frozen baseline** with the published report and, where available, a fresh run using the same 12 source files, dates and limits. Save private output outside Git; record inclusion criteria, analyzer version, file/session counts, matching and opaque denominator. Don't claim exact reproduction if old files grew or rotated; separate cohort effects from parser effects.
+2. Implement a **reason-only, non-content classifier** for every opaque \`CommandView\`. Emit one mutually exclusive primary reason plus optional secondary flags, with explicit precedence and totals reconciling to opaque count. Initial groups: \`shell_pipeline\`, \`boolean_chain\`, \`command_sequence\`, \`redirect_or_heredoc\`, \`subshell_or_group\`, \`environment_assignment\`, \`variable_or_command_expansion\`, \`multiline_script\`, \`unsupported_quote_or_lexer\`, \`shell_function_or_control_flow\`, \`unknown_or_other\`, plus \`null_byte_or_invalid\` when observed. Reason-classification errors return unknown, never crash or leak private text.
+3. Report by reason: requested-command count, distinct sessions, matched-output invocation count, **exclusively attributable** output bytes and p50/p90/p95, batching forms, and heuristic token ranges. Include unmatched/composite counts, avoiding any double attribution of one tool result. Distinguish **one actual shell invocation** from **N syntactic command segments**.
+4. Add a **local privacy-safe diagnostic review workflow**: aggregated reason/feature cross-tabs, optional salted ephemeral fingerprints or sanitized structural skeletons (operator tokens, allowlisted executable families, argument placeholders) in permissions-restricted local reports. Never include raw histories, command strings, arguments, output excerpts, private paths, env values or prompts in the repo, stderr or default reports. Manual examination of selected records may be done by the authorized local user; the tool itself must not print secrets.
+5. Pick parser expansion **from measured causes**. Document cases impossible to classify safely (nested quotes, heredocs, generated shell, substitution). If diagnostics remain inconclusive, stop with findings rather than implementing speculative parsing.
 
-Common event envelopes include \`session_meta\`, \`turn_context\`, \`response_item\`, \`event_msg\`; real invocations may use \`response_item.payload.type == "function_call"\` or a custom-tool call with \`name\`, JSON-encoded \`arguments\`, \`call_id\`; results may be \`function_call_output\` / \`custom_tool_call_output\` with metadata. Determine exact shapes empirically; never treat an event echo as a second invocation or assume a tool-result string equals unadorned stdout. Distinguish session identity, call ID and invocations. Observe tool families other than shell without trying to execute them.
+## Attribution design — bounded, conservative, no shell execution
 
-Virtual batching may appear as \`delayed_seq\` function calls, the proxy-rewritten \`exec_command\` form with \`CODEX_ROUTING_PROXY_VIRTUAL_BATCH=1 delayed-seq --initial-delay 0 -- ...\`, or normal \`delayed-seq -- 'cmd1' 'cmd2'\`. Count **tool invocations** separately from requested **underlying shell subcommands**. A failed early batch or dry run does not prove later commands actually ran.
+**Proposed internal types:** \`OpaqueReason\` enum/constants; \`ShellSegment\` containing family, shape, control-flow position and confidence; \`CommandAnalysis\` containing private original command, segments, primary reason, feature flags and \`attribution_confidence\` (\`high\`, \`partial\`, \`opaque\`). Extend \`CommandView\` or refactor internally without silently changing public report fields. No shell interpreter, command execution, \`eval\`, subprocess probing, filesystem expansion or LLM classification.
 
-## Detailed required behavior
+1. Parse **lexical boundaries** using Python stdlib where safe; preserve quotes/escapes and distinguish true operators from literals. Validate \`shlex\` punctuation on synthetic shell cases. If insufficient for POSIX shell grammar, implement only a bounded diagnostic tokenizer with strict unknown fallback, not a claimed complete shell parser. Dialect may be \`sh\`, \`bash\`, or \`zsh\`; don't assume equivalence.
+2. **High-confidence recovery:** one simple command with benign leading environment assignments (record assignment presence, not value), known wrappers \`env\`, \`command\`, \`timeout\` when arguments are validated, simple \`cmd1 && cmd2\`, \`cmd1 ; cmd2\`, \`cmd1 | cmd2\` with unambiguous tokens and no nested control flow. Keep distinct segment lists; **do not claim all segments executed**. Only the first segment can be assumed attempted when the shell invocation starts, subject to shell pre-execution failure.
+3. **Partial classification:** identify candidate executable families within a pipeline, condition or redirection but store **syntax-only frequencies** separately from executed-command counts. Pipeline output and exit status describe the whole expression; pipefail and shell-specific semantics defeat simple per-segment inference.
+4. **Remain opaque:** nested substitution, variable/parameter expansion affecting executable identity, shell aliases/functions, loops/conditionals, \`eval\`, heredoc scripts, here-strings, process substitution, arbitrary multiline scripts and nested subshells unless independently proven safe. Quoted \`|\` or \`&&\` are literals.
+5. **Output accounting:** attach combined output to originating tool invocation only; attribute exclusively to a family only if demonstrably one executable produced it. Composite/partial results remain \`composite_unattributed\` with related syntactic families, never duplicated into candidate totals. Preserve existing delayed-seq completion markers without extrapolating compound command segments.
+6. Preserve exact original grouping, call IDs, deduplication, failure accounting, native/proxy/shell batching, and bounded limits. Invalid syntax or parser failures must remain counted opaque, not dropped.
 
-### A. Secure, read-only local CLI
+## Revised reports and measurable success criteria
 
-Example:
+- Generate **local** \`opaque_command_diagnostics.md\` and \`opaque_command_diagnostics.json\` within the selected output directory, plus additive/versioned opaque-attribution sections in \`command_frequency_report.{md,json}\`. Keep top-family metrics comparable and explicitly distinguish \`high_confidence_single\`, \`partial_syntactic\`, \`unresolved_opaque\`. Bump \`SCHEMA_VERSION\` and document/test migration if semantics change; never silently redefine \`calls\`.
+- Show before/after opaque fraction by requested commands and by shell invocations, high-confidence family coverage, partial syntax coverage and still-unattributable output bytes, each with denominator. Show top reasons, confidence levels, and terse-adapter opportunities supported by *exclusive* output ownership.
+- **No fixed opaque-reduction quota.** Do not incentivize guessing merely to drive 63.7% lower. Success means useful explanatory coverage, validated syntax classifications, unchanged invocation/result totals, and more defensible adapter decisions.
+- Compare only matched cohorts; provide reconciliation of source records, invocations, requested subcommands, matching, total tool-output bytes, success/failure/unknown and composite output. Explicitly separate source reads such as \`sed\`/\`cat\` (often passthrough) from repetitive tests and diagnostics.
+- Token opportunities remain clearly byte-derived estimates, not provider-measured uncached tokens; compute \`U + 0.1C + 5O\` only with actual validated usage/request data.
+- Do not modify \`REPORT.md\`, core \`delayed-seq\`, \`AGENTS_APPEND.md\`, Codex proxy, or build a \`terse\` executable in this task.
 
-\`\`\`sh
-python3 scripts/analyze_codex_commands.py --codex-home "$HOME/.codex" --since 2026-10-01 --output-dir "$HOME/codex-command-report"
-\`\`\`
+## Deterministic regression tests
 
-Support \`--sessions-dir\` override, inclusive \`--since\`/\`--until\`, \`--include-archived\`, optional max-file/max-byte bounds, and deterministic output ordering. Recursively enumerate only recognized rollout JSONL paths beneath the chosen root; prohibit directory-symlink traversal and reject escapes. Never read credentials (\`auth.json\`, token stores), unrelated files, network endpoints, or invoke extracted commands. Stream files and lines with finite limits; handle actively appended partial records, invalid JSON, invalid UTF-8 and unreadable files conservatively, reporting coverage and skip reasons without leaking text. No raw command text, secrets, exact private paths, env var contents, user prompts, raw output excerpts or sensitive arguments in default Markdown/JSON/stderr. Output-directory permissions should be restrictive; redact project identity into categorical labels.
+Extend \`python_tests/test_analyze_codex_commands.py\` with synthetic JSONL and focused parser tests covering:
 
-### B. Exact invocation extraction and conservative command grouping
+- Operators inside/outside single/double quotes, escaping, empty strings, comments, whitespace, CR/LF, invalid UTF-8, malformed lexer forms. Quoted \`|\`, \`&&\`, \`;\`, \`>\`, \`$\` are not actual operators.
+- \`git status && cargo test\`, \`rg x src | head -20\`, \`cd src && pytest\`, \`VAR=secret cargo test\`, \`env VAR=secret rg x\`, \`2>&1\`, redirects, arithmetic/parameter/command substitution, \`$(...)\`, backticks, subshells, braces, \`for\`/\`if\`, heredocs, \`eval\`, multiline scripts and POSIX/Bash edge cases. Ambiguous forms remain partial/opaque.
+- Failing first command with skipped later commands, successful chains, pipeline composite outputs/status, and no duplicate attribution; maintain native/proxy \`delayed_seq\` stop-on-error and requested-versus-executed boundaries.
+- Existing call-ID matching, duplicate handling, incomplete/composite outputs, stable unchanged aggregate totals, no duplicate syntax-count attribution.
+- Privacy with secret env assignments, tokens, passwords, query strings, paths, heredocs and arbitrary outputs: zero leakage into Markdown, JSON, stderr, reports or test failures. Keep report permissions restrictive.
+- Deterministic sort order, versioning, estimates, date/symlink/size limits, repeated byte-identical reports, empty/fully opaque datasets, unknown-on-parser-error handling.
 
-Read actual version-supported \`response_item\` function and custom-tool requests, not merely text containing shell-looking syntax. Recognize \`exec_command\`, \`functions.shell_command\` and other observed command schemas, including array forms only when verified. Pair calls by \`(session ID, call_id)\`; dedupe the same call's alternate telemetry representations, **not** legitimate repeated invocations or retries with distinct IDs. Track observed timestamp, anonymized project category, tool name, invocation vs subcommand index, execution form (direct/native batch/proxy batch), matched completion status, and parsing-confidence level.
+Validation commands (batch where safe using installed \`delayed-seq\`): \`python3 -m unittest discover -s python_tests -v\`; \`python3 -m compileall -q scripts\`; synthetic end-to-end JSON/report reconciliation. Run a bounded private comparison on frozen local histories **only if available and authorized**; never invent real-data results. No external network or sleeps. Bound tokenizer nesting/segment length and total processing to avoid malformed-record denial of service.
 
-Normalize for aggregation, not execution, with safe \`shlex\` parsing of **simple** shell shapes. Report separately: tool invocations; executable families (\`git\`, \`rg\`, \`cargo\`, \`python -m pytest\`, etc.); stable argument shapes (\`rg <pattern> <path>\`); and optional per-run salted fingerprints. Never naively split quoted batch commands. Treat pipelines, \`&&\`, semicolons, redirects, subshells, environment assignments, shell expansion and ambiguous/nested invocations as **opaque or explicitly low-confidence**, rather than attributing incorrect executable counts. Report a parsing/unknown denominator. Preserve distinctions such as pytest module invocation versus arbitrary Python.
+## Execution handoff and final diff
 
-Rank top-N commands by call count and **number of distinct sessions**, plus shape-frequency distribution, direct versus batched use, repeated identical calls, high-frequency search/read/validation/Git families, unparsed share and long tail. Do not infer that two observed commands could have been batched merely because they were consecutive; model decisions may have been required. Candidate batching opportunities are heuristic upper bounds only.
+1. Verify latest \`main\`, read \`PLAN.md\` first, inspect exact starting symbols and tests above. Investigate measured opaque *reasons* before deciding parser breadth. Stop for uncertain dialect or privacy hazards.
+2. One bounded executor owns \`scripts/analyze_codex_commands.py\`, \`python_tests/test_analyze_codex_commands.py\`, \`docs/codex-command-frequency.md\`, minimal \`README.md\` clarification if needed. Introduce a helper module only if complexity warrants it. No incidental test-framework migration.
+3. Codex must decide how to batch execution efficiently: combine independent reads, compatible edits and validations; numbered steps are requirements, not individual tool calls. Use installed \`delayed-seq\` for consecutive commands needing no intermediate decision. Do not sacrifice correctness or required checks for fewer turns. Stop on failed validation or unsafe assumptions.
+4. Report changed files, commit SHA if implementation commits are independently authorized, tests, exact cohorts, before/after totals, opaque reasons, confidence and privacy status, report locations, limitations and deviations. Do not publish private derived data without explicit consent.
+5. Final diff: identical command/output totals on same cohort, no invented per-segment execution, privacy-safe, simple-command behavior unchanged, opaque fallback when uncertain, no modifications to \`delayed-seq\`, \`AGENTS_APPEND.md\`, \`REPORT.md\`, histories or proxy.
 
-### C. **Actual tool-output** measurement (essential)
-
-Correlate tool calls with their **model-visible output records** using exact session and call ID, across observed function/custom/batched forms. Distinguish shell stdout, stderr, exit status and wrapper-added metadata where separately available; if not separable report a combined tool observation. Explicitly count unmatched, duplicated, truncated, partial, ambiguous, binary or unparsable outputs. Never multiply one composite batch output by its number of subcommands, and never assert that every proposed command in a failed batch executed.
-
-Compute, per executable family **and stable command shape**:
-- Observed invocation count, number of distinct sessions, matched-output count/coverage, captured bytes, lines and any legitimately measured token counts; medians, p90/p95, max and total size (including distribution across sessions).
-- Model-visible total payload bytes versus extracted command stdout/stderr bytes when separately measurable; note truncation, ANSI coloring, progress noise, repeated headings, repeated warnings, redundant successes, success/failure mix, and diagnostic structure.
-- Structural features only in privacy-safe aggregation, not raw messages or exact paths: lines/file counts, typical boilerplate markers, repetitive success lines, stack traces, test assertion locations, Git patch hunks, source-like content, JSON structures, timestamps.
-- Unknown and high-risk output classifications, with examples expressed as sanitized patterns, **never** verbatim private content.
-
-Do not conflate provider output-generation tokens with the model's input observations. If session traces expose reliable request boundaries and usage, correlate \`input_tokens\`, \`input_tokens_details.cached_tokens\`, \`output_tokens\` only after validation; otherwise label fresh-output token counts **estimated**, not provider-measured uncached input.
-
-### D. Rank candidate Python \`terse\` adapters by **measurable opportunity**
-
-The proposed eventual wrapper has exactly one output mode: **terse**. Running a command **without** the wrapper is raw. Unknown executables, unsupported option/argument shapes and unsafe transformations are **byte-for-byte passthrough** of the captured command output, preserving exit semantics. An adapter parse failure must never rerun a command (side effects). This research **does not build or deploy** that wrapper.
-
-Produce an evidence-based priority table for candidate adapters: \`git status/log/show --stat\`, \`rg\`/\`grep\`, pytest/Cargo/Go tests, compilers/linters, package managers, common filesystem commands. Treat \`git diff\`, source reads and rich failing diagnostics as high-risk; lossless formatting or passthrough is preferable to deleting information required by an agent.
-
-For each candidate include:
-1. Measured calls, sessions and observed aggregate model-visible output bytes/tokens and matched-output coverage.
-2. Captured output type(s), repetition/noise structure, failure versus success prevalence, recoverability needs, and whether \`delayed-seq\` or other existing mechanisms already suppress the output.
-3. Plausible deterministic transform and parser edge cases; implementation/test complexity and an explicit safety class: \`safe to aggregate\`, \`high diagnostic risk\`, \`requires original-output recovery\`, or \`passthrough\`.
-4. Measured or **confidence-labeled** offline simulated reduction in the **observed payload** if a safe transform can be reproduced in-memory during analysis; estimated avoidable observation tokens **per invocation** and **across the window**, with lower/upper bounds and assumptions. If no reliable simulation exists, provide qualitative opportunity and mark savings **unknown** rather than fabricating them.
-5. A ranking emphasizing **avoided fresh/likely uncached input**, not frequency alone; e.g., a common 20-byte command may be less valuable than a moderately frequent verbose test log. Identify the smallest safe initial adapter set.
-6. Risks of extra Codex model calls, repeated inspections, debugging mistakes and lost assertions that may offset token savings.
-
-A read-only transform feasibility simulation may be added **inside the analyzer** on captured outputs using robust deterministic rules (e.g. consolidate repeated successful test names, retain exact failed test diagnostics). It must not change underlying files or build a production command wrapper. Compare simulated output to original structurally and require proven safe fallback. Do not substitute lexical bytes for actual tokenizer counts without labeling the approximation.
-
-### E. Uncached-input and cost methodology
-
-**Primary goal:** reduce *new* uncached model input by shortening the first model-visible observation after a tool finishes. Session history output size is a proxy for that opportunity, **not** proof of cache status. When request-level token usage is unavailable, report projected newly introduced observation size and uncertainty; never invent cache hits, weighted task-level cost savings, or absent usage counters. Where request-level usage exists, compute \`U = input - cached\`, \`W = U + 0.1*cached + 5*output\` only with validated counters and matching request boundaries. Report raw/terse estimated observations separately from complete-task weighted tokens. Require eventual controlled A/B benchmark against the current optimized proxy + \`delayed-seq\`; measure successful task completions, tool retries and additional calls, not only per-command compression percentages.
-
-### F. Reproducible, private report outputs
-
-Write \`command_frequency_report.md\` and \`command_frequency_report.json\` to an **explicit** output directory. Both contain report schema version, date window, source categories, file/session/record counts, parser and result-match coverage, top 20 executable families, top 30 normalized shapes, distinct-session counts, direct/batched breakdown, observed tool-output size distributions, repetition and boilerplate characterization, ranked **actual-output-grounded terse adapter opportunities**, conservative fresh-token bounds, implementation difficulty, information-loss risks, passthrough recommendations, likely batching opportunities and limitations. Order ties deterministically; never expose raw shell commands containing secrets, prompt text, literal private paths or raw tool-result content. Print only a short summary and paths. Include a *clearly illustrative* synthetic example in documentation; if local traces unavailable, provide parser and synthetic report, saying real frequencies are unmeasured.
-
-Do not edit or replace \`REPORT.md\`: that is the existing controlled batching study, not this personal-history observational analysis. Do not publish local real reports without privacy review and approval.
-
-## Deterministic tests and validation
-
-Build synthetic JSONL fixtures **in tests**, never using private history in the repository. Cover:
-- Single \`exec_command\`, custom tool call, \`event_msg\` duplicate echo; repeated real calls with distinct IDs; duplicate telemetry with same ID; matched/missing/ambiguous/duplicate/truncated tool outputs and correct coverage.
-- Multiple Codex envelope variants verified from local shape samples, nested/escaped command JSON, malformed lines, partial trailing line, UTF-8, oversized records, active files, malformed arguments and shell metacharacters.
-- Native \`delayed-seq\` quoted command list and proxy virtual marker serialization; proper distinction among tool invocations, proposed subcommands and **actually observed completed** subcommands. Stop-on-error/dry-run ambiguity.
-- Simple-shell \`shlex\` normalization and opaque fallback for pipes, multiline scripts, subshells, redirects, env assignments and complex quoting; no execution.
-- Symlink exclusion, custom sessions root, archived selection, inclusive date filters, file/byte caps and input never modified.
-- Synthetic \`git status\`, \`git diff\`, \`rg\`, pytest/Cargo/Go success/failure, compiler diagnostics, generic unknown, binary/invalid UTF-8 tool outputs: output-size attribution, percentiles, ranking high total output over mere frequency, risk categories, simulated safe transformations and passthrough.
-- Failure traceback preservation, stdout/stderr metadata variation, ANSI codes, truncated records, missing usage fields; **no false claim of measured uncached tokens**.
-- Secrets in command arguments and outputs never appear in Markdown, JSON, stderr or summaries. Identical fixtures produce byte-for-byte identical reports. No network or subprocess execution from session content.
-
-Suggested validation (commands may be batched with installed \`delayed-seq\` when safely consecutive):
-\`\`\`sh
-python3 -m pytest -q tests/test_analyze_codex_commands.py
-python3 -m compileall -q scripts
-\`\`\`
-Then run a synthetic end-to-end report and inspect the outputs. With authorized local Codex history available, run a bounded real-data report, explicitly record count/output matching confidence, and privacy-audit the report before publication. Stop on parsing ambiguities that would invalidate rankings or risk leaking secrets.
-
-## Executor handoff and final-diff checklist
-
-1. Verify the latest intended remote \`main\`; reconcile changes in README, report, or command wrapper. Read \`PLAN.md\` first and inspect the precise starting files/symbols above, then inspect only small, redacted local history envelopes to verify schemas. Do not have to rediscover already established repo facts.
-2. Implement as one bounded workstream with minimal dependencies. Treat numbered requirements as a contract, **not individual model calls**. Batch independent reads, compatible writes and validation; use \`delayed-seq\` for consecutive shell steps requiring no intermediate model decision. Stop on failures, data access uncertainty or privacy risk.
-3. Return changed files, tests, deviations, actual observed counts if accessible, output coverage, top commands, ranking of terse adapters **grounded in measured outputs**, modeled fresh-input token opportunities with confidence bounds, and unresolved assumptions. Do not invent local findings if only synthetic fixtures were available.
-4. Final diff: no changes to \`delayed-seq\`, \`AGENTS_APPEND.md\`, existing \`REPORT.md\`, private history or proxy. Do not commit implementation/research outputs without separate explicit authorization.
-
-**Planning commit contains only \`PLAN.md\`.**
+**Planning-file policy:** Commit only \`PLAN*.md\` with explicit approval and a rechecked target branch. No implementation code is authorized by the planning commit.
