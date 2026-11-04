@@ -1,11 +1,12 @@
 # Local Codex command-frequency analysis
 
-`scripts/analyze_codex_commands.py` is a read-only observational tool for local Codex rollout histories. It answers four bounded questions:
+`scripts/analyze_codex_commands.py` is a read-only observational tool for local Codex rollout histories. It answers five bounded questions:
 
 1. Which shell tool calls, executable families, and normalized command shapes occur most often?
 2. How much model-visible tool output was correlated to those calls?
 3. Which deterministic `terse` output adapters have measured or plausible opportunities, and what information could they lose?
 4. Where are `delayed-seq` batches used, and how large is the deliberately non-causal consecutive-command heuristic?
+5. Why were shell commands left unresolved, and which compound forms contain defensible syntax-only executable families?
 
 It does not build or deploy a `terse` runtime wrapper. It also does not establish cached-token behavior, billed cost, or universal command savings.
 
@@ -35,14 +36,16 @@ Useful bounds and overrides:
 
 The date window is inclusive. Only regular `rollout-*.jsonl` files are read. Directory and file symlinks are skipped, and no file is modified.
 
-The command prints only aggregate counts and the two output paths. Reports are created with `0700` directory and `0600` file permissions:
+The command prints only aggregate counts and the four output paths. Reports are created with `0700` directory and `0600` file permissions:
 
 ```text
 command_frequency_report.md
 command_frequency_report.json
+opaque_command_diagnostics.md
+opaque_command_diagnostics.json
 ```
 
-Prefer an output directory outside the repository. Local reports must not be committed or published without explicit review and approval.
+The normal report contains an additive `opaque_attribution` section. The diagnostics files contain the full reason/feature cross-tabs. Prefer an output directory outside the repository. Local reports must not be committed or published without explicit review and approval.
 
 ## Observed local envelope forms
 
@@ -63,15 +66,54 @@ One shell tool invocation may contain one direct command or multiple underlying 
 - Tool invocations and requested subcommands are reported separately.
 - Exact `call_id` matching prevents event echoes from becoming duplicate calls.
 - Legitimate repeated calls with distinct IDs remain separate observations.
-- Batch output is attributed once to its wrapper invocation, never copied to every requested subcommand.
+- Batch and compound output is owned once by its wrapper/invocation, never copied to inferred subcommands.
+- Output is attributed to an executable family only for a single high-confidence command; partial syntax never receives exclusive output ownership.
 - A dry run, timeout, or failed early batch does not prove later subcommands executed.
 - `delayed-seq` success/failure marker lines are counted when present; otherwise subcommand completion remains unknown.
 
-Simple shell forms are parsed with `shlex`. Pipelines, `&&`, semicolons, redirects, subshells, environment assignments, command substitution, and multiline forms are marked opaque. Normalized shapes contain only executable/family labels, recognized option names, and placeholders such as `<pattern>` or `<paths>`; values, patterns, paths, and raw commands are not serialized.
+Schema version 2 keeps invocation and requested-command denominators separate from syntactic segments. It reports three attribution confidence levels:
+
+- `high_confidence_single`: one validated executable identity, optionally behind benign literal environment assignments or the known `env`, `command`, and `timeout` wrapper forms;
+- `partial_syntactic`: one or more candidate executable families were lexically identified inside a pipeline, boolean chain, command sequence, or simple redirection;
+- `unresolved_opaque`: the form is malformed, shell-generating, nested, dynamic, or otherwise not safe to identify.
+
+A partial segment is syntax evidence only. It does not prove that the executable started, succeeded, or produced any part of the combined output. `coverage.opaque_subcommands` remains the count without high-confidence executable attribution for comparability, while new fields split that count into `partial_syntactic_subcommands` and `strict_opaque_subcommands`.
+
+Normalized shapes contain only allowlisted executable/family labels, recognized option names, and placeholders such as `<pattern>` or `<paths>`; values, patterns, paths, environment values, and raw commands are not serialized.
+
+## Opaque reason diagnostics
+
+Each structurally non-simple command receives one primary reason using deterministic precedence and may have secondary flags:
+
+```text
+null_byte_or_invalid
+shell_function_or_control_flow
+variable_or_command_expansion
+redirect_or_heredoc
+subshell_or_group
+command_sequence
+boolean_chain
+shell_pipeline
+multiline_script
+environment_assignment
+unsupported_quote_or_lexer
+unknown_or_other
+```
+
+The lexer distinguishes operators in quotes and comments from real operators, handles escapes, skips literal `#` content in words, and fails closed on unbalanced quotes, NUL bytes, excessive commands, or unexpected forms. Diagnostics include command/session counts, matched invocation counts, execution forms, confidence, secondary flags, byte-derived token ranges, and syntax-only family cross-tabs. Reason counts explicitly reconcile to the non-high-confidence command count.
+
+The supported attribution expansions are intentionally bounded:
+
+- leading literal assignments when shell-control environment names such as `PATH`, `BASH_ENV`, `LD_PRELOAD`, and `IFS` are not used;
+- `env` with validated assignment/option forms, `command` without lookup-only modes, and `timeout` with a validated duration;
+- top-level `|`, `&&`, `||`, `;`, background `&`, and newline boundaries where every segment resolves to one lexical executable;
+- simple redirection removal, including numeric file-descriptor duplication such as `2>&1`.
+
+Command/parameter expansion, backticks, heredocs and here-strings, process/command substitution, subshells, groups, shell functions, loops/conditionals, `eval`, and ambiguous wrapper options remain opaque. This is a bounded lexer, not a complete POSIX/Bash parser.
 
 ## Output correlation and measurement
 
-A result is attributed only when the exact session and call ID resolve to one shell invocation and one non-composite output record. Common output-value variants are supported:
+A result is correlated only when the exact session and call ID resolve to one shell invocation and one non-composite output record. Candidate executable attribution additionally requires a high-confidence single command. Common output-value variants are supported:
 
 - plain strings;
 - lists of textual content items;
@@ -82,6 +124,7 @@ The report distinguishes:
 - captured model-visible bytes and lines;
 - median, p90, p95, and maximum output size;
 - matched, duplicate, ambiguous, composite, and unmatched results;
+- exclusively attributable command output versus output still owned only by a batch or compound invocation;
 - success, failure, and unknown status;
 - ANSI controls, repeated lines, warnings, traces/assertions, Git hunks, JSON-like output, timestamps, truncation, and binary controls.
 

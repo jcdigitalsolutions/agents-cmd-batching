@@ -13,7 +13,6 @@ import json
 import math
 import os
 import re
-import shlex
 import stat
 import sys
 import tempfile
@@ -21,8 +20,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from codex_shell_analysis import (
+    OPAQUE_REASONS,
+    ShellAnalysis,
+    ShellLexError,
+    ShellSegment,
+    analyze_shell_command,
+    lex_simple_words,
+)
 
-SCHEMA_VERSION = 1
+
+SCHEMA_VERSION = 2
 DEFAULT_MAX_FILES = 1_000
 DEFAULT_MAX_FILE_BYTES = 32 * 1024 * 1024
 DEFAULT_MAX_TOTAL_BYTES = 512 * 1024 * 1024
@@ -39,9 +47,7 @@ SHELL_TOOL_NAMES = {
 }
 NATIVE_BATCH_TOOL_NAMES = {"delayed_seq", "delayed_seq_command"}
 PROXY_MARKER = "CODEX_ROUTING_PROXY_VIRTUAL_BATCH=1"
-SHELL_OPERATORS = {"|", "||", "&", "&&", ";", "(", ")", "<", ">", "<<", ">>"}
 ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
-SAFE_OPTION_RE = re.compile(r"^--?[A-Za-z][A-Za-z0-9-]{0,40}$")
 ANSI_RE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 EXIT_CODE_RE = re.compile(r"(?:process\s+)?exited\s+with\s+code\s+(-?\d+)", re.I)
 EXIT_CODE_FIELD_RE = re.compile(r'"exit_code"\s*:\s*(-?\d+)')
@@ -117,6 +123,13 @@ class CommandView:
     family: str
     shape: str
     confidence: str
+    opaque_reason: str | None = None
+    secondary_reasons: tuple[str, ...] = ()
+    segments: tuple[ShellSegment, ...] = ()
+    would_be_opaque_under_v1: bool = False
+    leading_assignment: bool = False
+    wrapper: str | None = None
+    features: tuple[str, ...] = ()
 
 
 @dataclass
@@ -307,8 +320,7 @@ CANDIDATES = (
 CANDIDATE_BY_ID = {item.candidate_id: item for item in CANDIDATES}
 
 
-class OpaqueShell(ValueError):
-    pass
+OpaqueShell = ShellLexError
 
 
 class JSLiteralParser:
@@ -592,20 +604,7 @@ def _extract_embedded_tool_calls(source: str) -> tuple[list[tuple[str, dict[str,
 
 
 def _tokenize_simple_shell(command: str) -> list[str]:
-    if "\x00" in command or "\n" in command or "\r" in command:
-        raise OpaqueShell
-    lexer = shlex.shlex(command, posix=True, punctuation_chars="|&;<>()`")
-    lexer.whitespace_split = True
-    lexer.commenters = ""
-    try:
-        tokens = list(lexer)
-    except ValueError as exc:
-        raise OpaqueShell from exc
-    if not tokens or any(token in SHELL_OPERATORS for token in tokens):
-        raise OpaqueShell
-    if any("$" in token or "`" in token for token in tokens):
-        raise OpaqueShell
-    return tokens
+    return lex_simple_words(command)
 
 
 def _safe_family(value: str) -> str:
@@ -615,89 +614,21 @@ def _safe_family(value: str) -> str:
     return "<unknown>"
 
 
-def _safe_option(token: str) -> str | None:
-    if token.startswith("-") and SAFE_OPTION_RE.fullmatch(token.split("=", 1)[0]):
-        return token.split("=", 1)[0]
-    if re.fullmatch(r"-\d+", token):
-        return "-<n>"
-    return None
-
-
-def _family_shape(tokens: Sequence[str]) -> tuple[str, str]:
-    executable = _safe_family(tokens[0])
-    options: list[str] = []
-    for token in tokens[1:]:
-        option = _safe_option(token)
-        if option is not None:
-            options.append(option)
-
-    if executable in {"python", "python3"} and len(tokens) >= 3 and tokens[1] == "-m":
-        module = tokens[2] if re.fullmatch(r"[A-Za-z0-9_.-]+", tokens[2]) else "<module>"
-        family = f"python -m {module}"
-        args = [token for token in tokens[3:] if _safe_option(token) is None]
-        return family, " ".join([family, *options, *("<selector>" for _ in args)])
-
-    if executable == "git":
-        subcommand = next(
-            (token for token in tokens[1:] if not token.startswith("-")),
-            "<subcommand>",
-        )
-        if not re.fullmatch(r"[A-Za-z0-9-]{1,40}", subcommand):
-            subcommand = "<subcommand>"
-        return "git", " ".join(["git", subcommand, *options])
-
-    if executable == "rg":
-        positional = sum(_safe_option(token) is None for token in tokens[1:])
-        placeholders = ["<pattern>"]
-        if positional > 1:
-            placeholders.append("<paths>")
-        return "rg", " ".join(["rg", *options, *placeholders])
-
-    if executable == "grep":
-        positional = sum(_safe_option(token) is None for token in tokens[1:])
-        placeholders = ["<pattern>"]
-        if positional > 1:
-            placeholders.append("<paths>")
-        return "grep", " ".join(["grep", *options, *placeholders])
-
-    if executable in {"pytest", "unittest"}:
-        positional = sum(_safe_option(token) is None for token in tokens[1:])
-        return executable, " ".join([executable, *options, *("<selector>" for _ in range(positional))])
-
-    if executable in {"cargo", "go"}:
-        subcommand = next(
-            (token for token in tokens[1:] if not token.startswith("-")),
-            "<subcommand>",
-        )
-        if not re.fullmatch(r"[A-Za-z0-9-]{1,40}", subcommand):
-            subcommand = "<subcommand>"
-        return f"{executable} {subcommand}", " ".join([executable, subcommand, *options])
-
-    if executable in {"npm", "pnpm", "yarn"}:
-        subcommand = next(
-            (token for token in tokens[1:] if not token.startswith("-")),
-            "<subcommand>",
-        )
-        if not re.fullmatch(r"[A-Za-z0-9:-]{1,40}", subcommand):
-            subcommand = "<subcommand>"
-        return f"{executable} {subcommand}", " ".join([executable, subcommand, *options])
-
-    positional = sum(_safe_option(token) is None for token in tokens[1:])
-    return executable, " ".join([executable, *options, *("<arg>" for _ in range(positional))])
-
-
 def _parse_simple_command(command: str) -> CommandView:
-    try:
-        tokens = _tokenize_simple_shell(command)
-        assignments = 0
-        while assignments < len(tokens) and ASSIGNMENT_RE.match(tokens[assignments]):
-            assignments += 1
-        if assignments:
-            raise OpaqueShell
-        family, shape = _family_shape(tokens)
-        return CommandView(command, family, shape, "high")
-    except (OpaqueShell, IndexError):
-        return CommandView(command, "<opaque>", "<opaque shell form>", "opaque")
+    analysis: ShellAnalysis = analyze_shell_command(command)
+    return CommandView(
+        raw=command,
+        family=analysis.family,
+        shape=analysis.shape,
+        confidence=analysis.confidence,
+        opaque_reason=analysis.opaque_reason,
+        secondary_reasons=analysis.secondary_reasons,
+        segments=analysis.segments,
+        would_be_opaque_under_v1=analysis.would_be_opaque_under_v1,
+        leading_assignment=analysis.leading_assignment,
+        wrapper=analysis.wrapper,
+        features=analysis.features,
+    )
 
 
 def _parse_delayed_tokens(tokens: Sequence[str]) -> tuple[list[str], bool, bool] | None:
@@ -1440,6 +1371,19 @@ class Bucket:
     repeated_invocations: int = 0
 
 
+@dataclass
+class AttributionBucket:
+    commands: int = 0
+    sessions: set[str] = field(default_factory=set)
+    matched_call_serials: set[int] = field(default_factory=set)
+    exclusive_outputs: list[OutputMetrics] = field(default_factory=list)
+    command_bytes: int = 0
+    execution_forms: collections.Counter[str] = field(default_factory=collections.Counter)
+    confidence: collections.Counter[str] = field(default_factory=collections.Counter)
+    secondary_reasons: collections.Counter[str] = field(default_factory=collections.Counter)
+    features: collections.Counter[str] = field(default_factory=collections.Counter)
+
+
 def _bucket_dict(bucket: Bucket) -> dict[str, Any]:
     return {
         "calls": bucket.calls,
@@ -1454,6 +1398,33 @@ def _bucket_dict(bucket: Bucket) -> dict[str, Any]:
         "repeated_invocations": bucket.repeated_invocations,
         "output": _summary_metrics(bucket.outputs),
     }
+
+
+def _attribution_reason_rows(
+    buckets: dict[str, AttributionBucket],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for reason in OPAQUE_REASONS:
+        bucket = buckets[reason]
+        rows.append(
+            {
+                "reason": reason,
+                "requested_commands": bucket.commands,
+                "distinct_sessions": len(bucket.sessions),
+                "matched_output_invocations": len(bucket.matched_call_serials),
+                "exclusively_attributable_output": _summary_metrics(
+                    bucket.exclusive_outputs
+                ),
+                "execution_forms": dict(sorted(bucket.execution_forms.items())),
+                "confidence": dict(sorted(bucket.confidence.items())),
+                "secondary_reason_counts": dict(
+                    sorted(bucket.secondary_reasons.items())
+                ),
+                "feature_counts": dict(sorted(bucket.features.items())),
+                "source_command_token_range": _token_range(bucket.command_bytes),
+            }
+        )
+    return rows
 
 
 def _candidate_id(family: str, shape: str) -> str | None:
@@ -1543,6 +1514,7 @@ def _add_to_bucket(
         call.output is not None
         and call.execution_form == "direct"
         and len(call.subcommands) == 1
+        and command.confidence == "high"
     ):
         bucket.outputs.append(call.output.metrics)
         bucket.output_sessions.add(call.session_id)
@@ -1620,17 +1592,39 @@ def build_report(state: ScanState) -> dict[str, Any]:
     execution_forms: collections.Counter[str] = collections.Counter()
     shell_tool_counts: collections.Counter[str] = collections.Counter()
     parsing_confidence: collections.Counter[str] = collections.Counter()
+    attribution_confidence: collections.Counter[str] = collections.Counter()
     subcommand_indexes: collections.Counter[str] = collections.Counter()
+    attribution_reasons: dict[str, AttributionBucket] = {
+        reason: AttributionBucket() for reason in OPAQUE_REASONS
+    }
+    reason_by_execution_form: dict[str, collections.Counter[str]] = {
+        reason: collections.Counter() for reason in OPAQUE_REASONS
+    }
+    syntactically_recovered_families: collections.Counter[tuple[str, str]] = (
+        collections.Counter()
+    )
+    syntactic_control_positions: collections.Counter[str] = collections.Counter()
+    wrappers_recovered: collections.Counter[str] = collections.Counter()
     candidate_observations: dict[str, list[tuple[OutputMetrics, OutputMetrics | None, bool]]] = (
         collections.defaultdict(list)
     )
     command_fingerprints: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
     requested_subcommands = 0
     opaque_subcommands = 0
+    strict_opaque_subcommands = 0
+    partial_syntactic_subcommands = 0
+    high_confidence_single_subcommands = 0
+    legacy_opaque_subcommands = 0
+    legacy_recovered_subcommands = 0
     dry_run_subcommands = 0
     batch_calls = 0
     deliberate_batch_calls = 0
     attached_result_keys: set[tuple[str, str]] = set()
+    exclusively_attributed_outputs: list[OutputMetrics] = []
+    legacy_opaque_invocations = 0
+    unattributed_invocations = 0
+    partial_invocations = 0
+    strict_opaque_invocations = 0
 
     for call in state.calls:
         execution_forms[call.execution_form] += 1
@@ -1644,11 +1638,58 @@ def build_report(state: ScanState) -> dict[str, Any]:
         execution.update(counts)
         if call.dry_run:
             dry_run_subcommands += len(call.subcommands)
+        if any(command.would_be_opaque_under_v1 for command in call.subcommands):
+            legacy_opaque_invocations += 1
+        if any(command.confidence != "high" for command in call.subcommands):
+            unattributed_invocations += 1
+        if any(command.confidence == "partial" for command in call.subcommands):
+            partial_invocations += 1
+        if any(command.confidence == "opaque" for command in call.subcommands):
+            strict_opaque_invocations += 1
         for subcommand_index, command in enumerate(call.subcommands, start=1):
             subcommand_indexes[str(subcommand_index) if subcommand_index <= 3 else "4+"] += 1
             parsing_confidence[command.confidence] += 1
-            if command.confidence == "opaque":
+            if command.confidence in {"partial", "opaque"}:
                 opaque_subcommands += 1
+            if command.confidence == "partial":
+                partial_syntactic_subcommands += 1
+                attribution_confidence["partial_syntactic"] += 1
+            elif command.confidence == "opaque":
+                strict_opaque_subcommands += 1
+                attribution_confidence["unresolved_opaque"] += 1
+            else:
+                high_confidence_single_subcommands += 1
+                attribution_confidence["high_confidence_single"] += 1
+            if command.would_be_opaque_under_v1:
+                legacy_opaque_subcommands += 1
+                if command.confidence == "high":
+                    legacy_recovered_subcommands += 1
+            if command.wrapper is not None and command.confidence == "high":
+                wrappers_recovered[command.wrapper] += 1
+            for segment in command.segments:
+                syntactically_recovered_families[(segment.family, segment.shape)] += 1
+                syntactic_control_positions[segment.control_position] += 1
+            if command.opaque_reason is not None:
+                reason_bucket = attribution_reasons[command.opaque_reason]
+                reason_bucket.commands += 1
+                reason_bucket.sessions.add(call.session_id)
+                reason_bucket.command_bytes += len(command.raw.encode("utf-8"))
+                reason_bucket.execution_forms[call.execution_form] += 1
+                reason_bucket.confidence[command.confidence] += 1
+                reason_bucket.secondary_reasons.update(command.secondary_reasons)
+                reason_bucket.features.update(command.features)
+                reason_by_execution_form[command.opaque_reason][
+                    call.execution_form
+                ] += 1
+                if call.output is not None:
+                    reason_bucket.matched_call_serials.add(call.serial)
+                if (
+                    call.output is not None
+                    and call.execution_form == "direct"
+                    and len(call.subcommands) == 1
+                    and command.confidence == "high"
+                ):
+                    reason_bucket.exclusive_outputs.append(call.output.metrics)
             _add_to_bucket(
                 family_buckets[command.family],
                 call,
@@ -1676,12 +1717,20 @@ def build_report(state: ScanState) -> dict[str, Any]:
                     call.output is not None
                     and call.execution_form == "direct"
                     and len(call.subcommands) == 1
+                    and command.confidence == "high"
                 ):
                     transform = CANDIDATE_BY_ID[candidate_id].transform
                     simulation = call.output.simulations.get(transform) if transform else None
                     candidate_observations[candidate_id].append(
                         (call.output.metrics, simulation, call.dry_run)
                     )
+            if (
+                call.output is not None
+                and call.execution_form == "direct"
+                and len(call.subcommands) == 1
+                and command.confidence == "high"
+            ):
+                exclusively_attributed_outputs.append(call.output.metrics)
             fingerprint = _fingerprint(command.raw, state.options.fingerprint_salt)
             if fingerprint is not None:
                 command_fingerprints[command.shape].append(
@@ -1797,6 +1846,148 @@ def build_report(state: ScanState) -> dict[str, Any]:
     scanned_results = sum(len(items) for items in state.outputs_by_key.values())
     call_output_bytes = sum(item.bytes for item in all_outputs)
     unknown_share = (opaque_subcommands / requested_subcommands) if requested_subcommands else 0.0
+    strict_unknown_share = (
+        strict_opaque_subcommands / requested_subcommands
+        if requested_subcommands
+        else 0.0
+    )
+    high_confidence_share = (
+        high_confidence_single_subcommands / requested_subcommands
+        if requested_subcommands
+        else 0.0
+    )
+    partial_syntax_share = (
+        partial_syntactic_subcommands / requested_subcommands
+        if requested_subcommands
+        else 0.0
+    )
+    exclusive_output_bytes = sum(
+        item.bytes for item in exclusively_attributed_outputs
+    )
+    still_unattributable_output_bytes = max(
+        0, call_output_bytes - exclusive_output_bytes
+    )
+    non_shell_total = sum(state.non_shell_tools.values())
+    shell_invocations = len(state.calls)
+    matched_outputs = sum(1 for call in state.calls if call.output is not None)
+    result_coverage = matched_outputs / shell_invocations if shell_invocations else 0.0
+    reason_rows = _attribution_reason_rows(attribution_reasons)
+    syntactic_family_rows = [
+        {
+            "family": family,
+            "shape": shape,
+            "syntactic_occurrences": count,
+            "candidate_id": _candidate_id(family, shape),
+        }
+        for (family, shape), count in sorted(
+            syntactically_recovered_families.items(),
+            key=lambda item: (-item[1], item[0][0], item[0][1]),
+        )[:30]
+    ]
+    attribution_summary = {
+        "requested_commands": requested_subcommands,
+        "high_confidence_single": high_confidence_single_subcommands,
+        "partial_syntactic": partial_syntactic_subcommands,
+        "unresolved_opaque": strict_opaque_subcommands,
+        "unattributed_commands": partial_syntactic_subcommands
+        + strict_opaque_subcommands,
+        "high_confidence_family_coverage": round(high_confidence_share, 6),
+        "partial_syntax_coverage": round(partial_syntax_share, 6),
+        "unresolved_opaque_share": round(strict_unknown_share, 6),
+        "legacy_v1_opaque_commands": legacy_opaque_subcommands,
+        "legacy_v1_opaque_recovered_high_confidence": legacy_recovered_subcommands,
+        "legacy_v1_opaque_share": round(
+            legacy_opaque_subcommands / requested_subcommands
+            if requested_subcommands
+            else 0.0,
+            6,
+        ),
+        "shell_invocations": shell_invocations,
+        "legacy_v1_opaque_invocations": legacy_opaque_invocations,
+        "unattributed_invocations": unattributed_invocations,
+        "partial_syntactic_invocations": partial_invocations,
+        "strict_opaque_invocations": strict_opaque_invocations,
+        "exclusively_attributed_output_bytes": exclusive_output_bytes,
+        "still_unattributable_output_bytes": still_unattributable_output_bytes,
+    }
+    reason_classified_commands = sum(
+        bucket.commands for bucket in attribution_reasons.values()
+    )
+    reason_partial_commands = sum(
+        bucket.confidence["partial"] for bucket in attribution_reasons.values()
+    )
+    reason_opaque_commands = sum(
+        bucket.confidence["opaque"] for bucket in attribution_reasons.values()
+    )
+    reason_high_confidence_commands = sum(
+        bucket.confidence["high"] for bucket in attribution_reasons.values()
+    )
+    reconciliation = {
+        "reason_classified_commands": reason_classified_commands,
+        "reason_high_confidence_recovered": reason_high_confidence_commands,
+        "reason_partial_syntactic": reason_partial_commands,
+        "reason_unresolved_opaque": reason_opaque_commands,
+        "reason_non_high_confidence": reason_partial_commands
+        + reason_opaque_commands,
+        "coverage_opaque_subcommands": opaque_subcommands,
+        "reconciles_to_opaque_subcommands": (
+            reason_partial_commands + reason_opaque_commands == opaque_subcommands
+        ),
+        "commands_without_primary_reason": max(
+            0, requested_subcommands - reason_classified_commands
+        ),
+    }
+    attribution = {
+        "semantics_version": 1,
+        "confidence_levels": [
+            "high_confidence_single",
+            "partial_syntactic",
+            "unresolved_opaque",
+        ],
+        "reason_precedence": list(OPAQUE_REASONS),
+        "summary": attribution_summary,
+        "reconciliation": reconciliation,
+        "confidence": [
+            {
+                "confidence": name,
+                "requested_commands": count,
+                "share": round(
+                    count / requested_subcommands if requested_subcommands else 0.0,
+                    6,
+                ),
+            }
+            for name, count in sorted(attribution_confidence.items())
+        ],
+        "reasons": reason_rows,
+        "reason_by_execution_form": {
+            reason: dict(sorted(counts.items()))
+            for reason, counts in reason_by_execution_form.items()
+        },
+        "syntactic_segments": {
+            "occurrence_count": sum(
+                syntactically_recovered_families.values()
+            ),
+            "warning": (
+                "Syntactic segments are possibilities inside one originating shell "
+                "invocation, not proof that each executable ran."
+            ),
+            "top_families": syntactic_family_rows,
+            "control_positions": dict(sorted(syntactic_control_positions.items())),
+        },
+        "wrappers_recovered": dict(sorted(wrappers_recovered.items())),
+        "output_ownership": {
+            "exclusively_attributable_matched_outputs": _summary_metrics(
+                exclusively_attributed_outputs
+            ),
+            "matched_invocation_output_bytes": call_output_bytes,
+            "still_unattributable_output_bytes": still_unattributable_output_bytes,
+            "rule": (
+                "Composite, partial, ambiguous, unmatched, and wrapper-batch outputs "
+                "remain owned by the originating invocation and are not multiplied "
+                "across syntactic segments."
+            ),
+        },
+    }
     workload = collections.Counter()
     for row in family_rows:
         family = row["family"]
@@ -1822,11 +2013,6 @@ def build_report(state: ScanState) -> dict[str, Any]:
             workload["build_or_lint"] += row["calls"]
         else:
             workload["other"] += row["calls"]
-
-    non_shell_total = sum(state.non_shell_tools.values())
-    shell_invocations = len(state.calls)
-    matched_outputs = sum(1 for call in state.calls if call.output is not None)
-    result_coverage = matched_outputs / shell_invocations if shell_invocations else 0.0
 
     report: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -1862,7 +2048,14 @@ def build_report(state: ScanState) -> dict[str, Any]:
             "shell_tool_invocations": shell_invocations,
             "requested_underlying_subcommands": requested_subcommands,
             "opaque_subcommands": opaque_subcommands,
+            "strict_opaque_subcommands": strict_opaque_subcommands,
+            "partial_syntactic_subcommands": partial_syntactic_subcommands,
+            "high_confidence_single_subcommands": high_confidence_single_subcommands,
+            "legacy_v1_opaque_subcommands": legacy_opaque_subcommands,
             "parsing_unknown_share": round(unknown_share, 6),
+            "strict_opaque_share": round(strict_unknown_share, 6),
+            "high_confidence_family_coverage": round(high_confidence_share, 6),
+            "partial_syntax_coverage": round(partial_syntax_share, 6),
             "parsing_confidence": dict(sorted(parsing_confidence.items())),
             "subcommand_index_distribution": dict(sorted(subcommand_indexes.items())),
             "non_shell_tool_invocations": non_shell_total,
@@ -1923,6 +2116,8 @@ def build_report(state: ScanState) -> dict[str, Any]:
             "cache_status": "not_measured",
             "observed_model_visible_output": _summary_metrics(all_outputs),
             "total_attributed_output_bytes": call_output_bytes,
+            "exclusive_command_output_bytes": exclusive_output_bytes,
+            "still_unattributable_output_bytes": still_unattributable_output_bytes,
             "truncated_output_records": sum(
                 item.features["truncated"] for item in all_outputs
             ),
@@ -1944,6 +2139,7 @@ def build_report(state: ScanState) -> dict[str, Any]:
                 "that a model decision was unnecessary between commands."
             ),
         },
+        "opaque_attribution": attribution,
         "terse_adapters": candidate_rows,
         "smallest_safe_initial_set": [
             row["candidate_id"]
@@ -1952,6 +2148,22 @@ def build_report(state: ScanState) -> dict[str, Any]:
             and row["simulation"]["removed_observed_bytes"] > 0
         ][:3],
         "methodology": {
+            "schema_migration": {
+                "from_version": 1,
+                "to_version": 2,
+                "compatible_fields": [
+                    "coverage.shell_tool_invocations",
+                    "coverage.requested_underlying_subcommands",
+                    "coverage.matched_shell_invocations",
+                    "output_measurement.observed_model_visible_output",
+                ],
+                "changed_semantics": (
+                    "coverage.opaque_subcommands remains the count without a "
+                    "high-confidence executable attribution, but version 2 splits "
+                    "that count into partial_syntactic and strict opaque forms. "
+                    "Opaque diagnostics and attribution are additive sections."
+                ),
+            },
             "observation_token_estimate": {
                 "lower_divisor_bytes_per_token": TOKEN_LOWER_DIVISOR,
                 "point_divisor_bytes_per_token": TOKEN_POINT_DIVISOR,
@@ -1962,8 +2174,9 @@ def build_report(state: ScanState) -> dict[str, Any]:
                 ),
             },
             "output_attribution": (
-                "Only exact session/call-id matches with one non-composite observation are "
-                "attributed. Batch output is never multiplied across subcommands."
+                "Only exact session/call-id matches with one non-composite observation "
+                "and one high-confidence executable are attributed. Partial syntactic "
+                "segments and batch output are never multiplied across subcommands."
             ),
             "read_only": True,
         },
@@ -1972,6 +2185,7 @@ def build_report(state: ScanState) -> dict[str, Any]:
             "Unmatched, composite, truncated, malformed, and unsupported records reduce confidence.",
             "Normalized shapes intentionally omit command arguments and exact paths.",
             "The analyzer does not execute, replay, upload, or inspect workspace contents.",
+            "A syntactic segment is not evidence that the executable ran or produced output.",
             "The batching-pair count is not a claim that those calls could or should be batched.",
         ],
     }
@@ -1997,6 +2211,12 @@ def render_markdown(report: dict[str, Any]) -> str:
     families = report["command_frequency"]["top_executable_families"]
     shapes = report["command_frequency"]["top_normalized_shapes"]
     adapters = report["terse_adapters"]
+    attribution = report["opaque_attribution"]
+    attribution_summary = attribution["summary"]
+    reasons = [
+        row for row in attribution["reasons"] if row["requested_commands"] > 0
+    ]
+    syntactic_rows = attribution["syntactic_segments"]["top_families"]
     window = report["analysis_scope"]["date_window"]
     lines = [
         "# Codex Command Frequency Report",
@@ -2018,6 +2238,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"{coverage['shell_tool_invocations']} shell invocations "
         f"({coverage['result_match_coverage']:.1%})",
         f"- Opaque command share: {coverage['parsing_unknown_share']:.1%}",
+        f"- High-confidence single-command attribution: "
+        f"{attribution_summary['high_confidence_family_coverage']:.1%}",
+        f"- Partial syntactic-only attribution: "
+        f"{attribution_summary['partial_syntax_coverage']:.1%}",
         "",
         "Skipped or incomplete records: "
         f"{coverage['invalid_json_records']} invalid JSON, "
@@ -2064,6 +2288,70 @@ def render_markdown(report: dict[str, Any]) -> str:
             ),
         )
     )
+    lines.extend(
+        [
+            "",
+            "## Opaque attribution",
+            "",
+            f"- Legacy v1 opaque commands: "
+            f"{_format_int(attribution_summary['legacy_v1_opaque_commands'])}",
+            f"- High-confidence single commands: "
+            f"{_format_int(attribution_summary['high_confidence_single'])}",
+            f"- Partial syntactic-only commands: "
+            f"{_format_int(attribution_summary['partial_syntactic'])}",
+            f"- Still unresolved opaque commands: "
+            f"{_format_int(attribution_summary['unresolved_opaque'])}",
+            f"- Still-unattributable matched output bytes: "
+            f"{_format_int(attribution_summary['still_unattributable_output_bytes'])}",
+            "",
+            "A partial syntactic command identifies candidate executable families but does "
+            "not prove those commands ran or produced output. Composite output remains "
+            "owned by its originating invocation only.",
+            "",
+        ]
+    )
+    lines.extend(
+        _markdown_table(
+            [
+                "Reason",
+                "Commands",
+                "Sessions",
+                "Matched invocations",
+                "Exclusive bytes",
+            ],
+            (
+                [
+                    f"`{row['reason']}`",
+                    _format_int(row["requested_commands"]),
+                    _format_int(row["distinct_sessions"]),
+                    _format_int(row["matched_output_invocations"]),
+                    _format_int(
+                        row["exclusively_attributable_output"][
+                            "captured_model_visible_bytes"
+                        ]
+                    ),
+                ]
+                for row in reasons
+            ),
+        )
+    )
+    lines.extend(["", "### Syntax-only segment families", ""])
+    if syntactic_rows:
+        lines.extend(
+            _markdown_table(
+                ["Family", "Shape", "Syntactic occurrences"],
+                (
+                    [
+                        f"`{row['family']}`",
+                        f"`{row['shape']}`",
+                        _format_int(row["syntactic_occurrences"]),
+                    ]
+                    for row in syntactic_rows
+                ),
+            )
+        )
+    else:
+        lines.append("No high-confidence syntactic segments were recovered.")
     lines.extend(
         [
             "",
@@ -2134,6 +2422,186 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def build_opaque_diagnostics(report: dict[str, Any]) -> dict[str, Any]:
+    attribution = report["opaque_attribution"]
+    coverage = report["coverage"]
+    return {
+        "schema_version": report["schema_version"],
+        "title": "Codex opaque command diagnostics",
+        "privacy": report["privacy"],
+        "analysis_scope": report["analysis_scope"],
+        "coverage": {
+            "processed_files": coverage["processed_files"],
+            "sessions": coverage["sessions"],
+            "records": coverage["records"],
+            "shell_tool_invocations": coverage["shell_tool_invocations"],
+            "requested_underlying_subcommands": coverage[
+                "requested_underlying_subcommands"
+            ],
+            "matched_shell_invocations": coverage["matched_shell_invocations"],
+            "legacy_v1_opaque_subcommands": coverage[
+                "legacy_v1_opaque_subcommands"
+            ],
+            "strict_opaque_subcommands": coverage["strict_opaque_subcommands"],
+            "partial_syntactic_subcommands": coverage[
+                "partial_syntactic_subcommands"
+            ],
+        },
+        "summary": attribution["summary"],
+        "reconciliation": attribution["reconciliation"],
+        "confidence_levels": attribution["confidence_levels"],
+        "confidence": attribution["confidence"],
+        "reason_precedence": attribution["reason_precedence"],
+        "reasons": attribution["reasons"],
+        "reason_by_execution_form": attribution["reason_by_execution_form"],
+        "syntactic_segments": attribution["syntactic_segments"],
+        "wrappers_recovered": attribution["wrappers_recovered"],
+        "output_ownership": attribution["output_ownership"],
+        "methodology": {
+            "read_only": True,
+            "shell_execution": False,
+            "reason_taxonomy_only": True,
+            "syntactic_segments_are_execution_evidence": False,
+            "raw_commands_present": False,
+            "raw_outputs_present": False,
+        },
+        "limitations": report["limitations"],
+    }
+
+
+def render_opaque_diagnostics_markdown(report: dict[str, Any]) -> str:
+    diagnostics = build_opaque_diagnostics(report)
+    summary = diagnostics["summary"]
+    reasons = [
+        row for row in diagnostics["reasons"] if row["requested_commands"] > 0
+    ]
+    confidence = diagnostics["confidence"]
+    segments = diagnostics["syntactic_segments"]["top_families"]
+    window = diagnostics["analysis_scope"]["date_window"]
+    output = diagnostics["output_ownership"]
+    lines = [
+        "# Codex Opaque Command Diagnostics",
+        "",
+        "This is a privacy-safe, reason-only diagnostic report. It contains no raw "
+        "commands, arguments, output excerpts, prompts, session IDs, environment values, "
+        "or exact paths.",
+        "",
+        "## Scope",
+        "",
+        f"- Date window: `{window['since'] or 'unbounded'}` through "
+        f"`{window['until'] or 'unbounded'}` (inclusive)",
+        f"- Shell invocations: {_format_int(summary['shell_invocations'])}",
+        f"- Requested commands: {_format_int(summary['requested_commands'])}",
+        f"- Legacy v1 opaque commands: "
+        f"{_format_int(summary['legacy_v1_opaque_commands'])}",
+        f"- Recovered as high-confidence single commands: "
+        f"{_format_int(summary['high_confidence_single'])}",
+        f"- Partial syntactic-only commands: "
+        f"{_format_int(summary['partial_syntactic'])}",
+        f"- Strict unresolved opaque commands: "
+        f"{_format_int(summary['unresolved_opaque'])}",
+        f"- Reason/opaque reconciliation: "
+        f"{'yes' if diagnostics['reconciliation']['reconciles_to_opaque_subcommands'] else 'no'}",
+        "",
+        "## Confidence",
+        "",
+    ]
+    lines.extend(
+        _markdown_table(
+            ["Confidence", "Requested commands", "Share"],
+            (
+                [
+                    f"`{row['confidence']}`",
+                    _format_int(row["requested_commands"]),
+                    f"{row['share']:.1%}",
+                ]
+                for row in confidence
+            ),
+        )
+    )
+    lines.extend(["", "## Primary reasons", ""])
+    lines.extend(
+        _markdown_table(
+            [
+                "Reason",
+                "Commands",
+                "Sessions",
+                "Matched invocations",
+                "Exclusive bytes",
+                "Heuristic source tokens",
+            ],
+            (
+                [
+                    f"`{row['reason']}`",
+                    _format_int(row["requested_commands"]),
+                    _format_int(row["distinct_sessions"]),
+                    _format_int(row["matched_output_invocations"]),
+                    _format_int(
+                        row["exclusively_attributable_output"][
+                            "captured_model_visible_bytes"
+                        ]
+                    ),
+                    (
+                        f"{_format_int(row['source_command_token_range']['lower'])}"
+                        f"–{_format_int(row['source_command_token_range']['upper'])}"
+                    ),
+                ]
+                for row in reasons
+            ),
+        )
+    )
+    lines.extend(
+        [
+            "",
+            "Reasons use deterministic precedence; secondary flags are included in the "
+            "JSON report. Counts in this table reconcile to commands with diagnostics, "
+            "not to claimed execution of every syntactic segment.",
+            "",
+            "## Syntax-only families",
+            "",
+        ]
+    )
+    if segments:
+        lines.extend(
+            _markdown_table(
+                ["Family", "Shape", "Syntactic occurrences"],
+                (
+                    [
+                        f"`{row['family']}`",
+                        f"`{row['shape']}`",
+                        _format_int(row["syntactic_occurrences"]),
+                    ]
+                    for row in segments
+                ),
+            )
+        )
+    else:
+        lines.append("No unambiguous syntactic segments were recovered.")
+    lines.extend(
+        [
+            "",
+            "## Output ownership",
+            "",
+            f"- Matched invocation output bytes: "
+            f"{_format_int(output['matched_invocation_output_bytes'])}",
+            f"- Exclusively attributable bytes: "
+            f"{_format_int(output['exclusively_attributable_matched_outputs']['captured_model_visible_bytes'])}",
+            f"- Still-unattributable bytes: "
+            f"{_format_int(output['still_unattributable_output_bytes'])}",
+            "",
+            output["rule"],
+            "",
+            "## Limits",
+            "",
+            "- Segment detection is lexical, not a complete POSIX/Bash parser.",
+            "- The analyzer does not execute commands, evaluate expansions, or inspect files.",
+            "- Token ranges are byte-derived heuristics, not provider-measured usage.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _validate_output_dir(path: Path) -> None:
     if path.exists() and path.is_symlink():
         raise AnalysisError("output directory may not be a symlink")
@@ -2141,7 +2609,9 @@ def _validate_output_dir(path: Path) -> None:
         raise AnalysisError("output path exists and is not a directory")
 
 
-def write_reports(report: dict[str, Any], output_dir: Path) -> tuple[Path, Path]:
+def write_reports(
+    report: dict[str, Any], output_dir: Path
+) -> tuple[Path, Path, Path, Path]:
     _validate_output_dir(output_dir)
     output_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     try:
@@ -2150,9 +2620,21 @@ def write_reports(report: dict[str, Any], output_dir: Path) -> tuple[Path, Path]
         raise AnalysisError(f"cannot restrict output directory permissions: {exc}") from exc
     markdown_path = output_dir / "command_frequency_report.md"
     json_path = output_dir / "command_frequency_report.json"
+    diagnostics_markdown_path = output_dir / "opaque_command_diagnostics.md"
+    diagnostics_json_path = output_dir / "opaque_command_diagnostics.json"
     markdown = render_markdown(report).encode("utf-8")
     machine = (json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
-    for target, content in ((markdown_path, markdown), (json_path, machine)):
+    diagnostics = build_opaque_diagnostics(report)
+    diagnostics_markdown = render_opaque_diagnostics_markdown(report).encode("utf-8")
+    diagnostics_machine = (
+        json.dumps(diagnostics, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+    for target, content in (
+        (markdown_path, markdown),
+        (json_path, machine),
+        (diagnostics_markdown_path, diagnostics_markdown),
+        (diagnostics_json_path, diagnostics_machine),
+    ):
         if target.is_symlink():
             raise AnalysisError("report target may not be a symlink")
         descriptor, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=output_dir)
@@ -2174,7 +2656,12 @@ def write_reports(report: dict[str, Any], output_dir: Path) -> tuple[Path, Path]
             except OSError:
                 pass
             raise
-    return markdown_path, json_path
+    return (
+        markdown_path,
+        json_path,
+        diagnostics_markdown_path,
+        diagnostics_json_path,
+    )
 
 
 def _inclusive_date(value: str) -> dt.date:
@@ -2237,7 +2724,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         state = scan_rollouts(options)
         report = build_report(state)
-        markdown_path, json_path = write_reports(report, options.output_dir)
+        markdown_path, json_path, diagnostics_markdown_path, diagnostics_json_path = (
+            write_reports(report, options.output_dir)
+        )
     except (AnalysisError, OSError) as exc:
         print(f"analyze_codex_commands: {exc}", file=sys.stderr)
         return 2
@@ -2250,6 +2739,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     print(f"Markdown: {markdown_path}")
     print(f"JSON: {json_path}")
+    print(f"Diagnostics Markdown: {diagnostics_markdown_path}")
+    print(f"Diagnostics JSON: {diagnostics_json_path}")
     return 0
 
 

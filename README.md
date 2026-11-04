@@ -77,7 +77,7 @@ Never bypass required checks, suppress failures, or queue validation behind an u
 
 ## Analyze local Codex command history
 
-`scripts/analyze_codex_commands.py` is a read-only, standard-library analyzer for local Codex rollout JSONL. It correlates structured shell calls and exact call IDs with model-visible tool output, measures normalized command families without retaining raw commands, and ranks conservative future `terse` adapter opportunities.
+`scripts/analyze_codex_commands.py` is a read-only, standard-library analyzer for local Codex rollout JSONL. It correlates structured shell calls and exact call IDs with model-visible tool output, measures normalized command families without retaining raw commands, explains opaque shell forms by reason, conservatively identifies syntax-only executable segments, and ranks future `terse` adapter opportunities.
 
 Write reports outside Git unless you have reviewed and explicitly approved publishing them:
 
@@ -88,7 +88,7 @@ python3 scripts/analyze_codex_commands.py \
   --output-dir "$HOME/codex-command-report"
 ```
 
-The analyzer never executes extracted commands, reads credentials, or uploads session data. Its byte-derived token ranges are estimates, not provider-measured uncached input. See [docs/codex-command-frequency.md](docs/codex-command-frequency.md) for the report schema, privacy boundaries, and methodology.
+The analyzer writes schema-versioned command reports plus private `opaque_command_diagnostics.{md,json}` files. It never executes extracted commands, reads credentials, or uploads session data. Partial syntactic segments are not treated as evidence that every segment ran. Its byte-derived token ranges are estimates, not provider-measured uncached input. See [docs/codex-command-frequency.md](docs/codex-command-frequency.md) for the report schema, attribution rules, privacy boundaries, and methodology.
 
 The reviewed aggregate report from this repository's initial bounded run is available in [command_frequency_report.md](command_frequency_report.md) and [command_frequency_report.json](command_frequency_report.json).
 

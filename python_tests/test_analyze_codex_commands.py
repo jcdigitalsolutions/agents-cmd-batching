@@ -291,13 +291,217 @@ class AnalyzerFixture(unittest.TestCase):
             ]
         )
         report, markdown, _, _ = self.run_analyzer()
-        self.assertEqual(self.family(report, "<opaque>")["calls"], 2)
-        self.assertEqual(report["coverage"]["opaque_subcommands"], 2)
+        self.assertEqual(self.family(report, "<opaque>")["calls"], 1)
+        self.assertEqual(report["coverage"]["opaque_subcommands"], 1)
+        self.assertEqual(report["coverage"]["partial_syntactic_subcommands"], 1)
+        self.assertEqual(report["coverage"]["high_confidence_single_subcommands"], 1)
+        self.assertEqual(report["coverage"]["legacy_v1_opaque_subcommands"], 2)
+        self.assertEqual(self.family(report, "rg")["output"]["matched_output_count"], 1)
         combined = markdown + json.dumps(report)
         self.assertNotIn("super-secret-value", combined)
         self.assertNotIn("super-secret-output", combined)
         self.assertNotIn("/private/example/project", combined)
         self.assertNotIn("private-session", combined)
+
+    def test_opaque_reason_taxonomy_and_quoted_operators(self):
+        cases = {
+            "rg x src | head -20": "shell_pipeline",
+            "git status && cargo test": "boolean_chain",
+            "git status; cargo test": "command_sequence",
+            "git status 2>&1": "redirect_or_heredoc",
+            "cat <<EOF\nsecret\nEOF": "redirect_or_heredoc",
+            "(cd src && pytest)": "subshell_or_group",
+            "TOKEN=secret cargo test": "environment_assignment",
+            'rg "$TOKEN" src': "variable_or_command_expansion",
+            "git status\ncargo test": "multiline_script",
+            "rg 'unterminated": "unsupported_quote_or_lexer",
+            'for x in one two; do echo "$x"; done': "shell_function_or_control_flow",
+            "# comment only": "unknown_or_other",
+            "rg x\x00src": "null_byte_or_invalid",
+        }
+        for command, expected in cases.items():
+            with self.subTest(reason=expected):
+                analysis = analyzer.analyze_shell_command(command)
+                self.assertEqual(analysis.opaque_reason, expected)
+
+        for command in (
+            "rg 'a|b' src",
+            'rg "a&&b" src',
+            "rg 'a;b' src",
+            "rg 'a>b' src",
+            "rg 'a$b' src",
+            r"rg a\|b src",
+            "rg x src # ignored && secret",
+        ):
+            with self.subTest(literal_operator=command):
+                analysis = analyzer.analyze_shell_command(command)
+                self.assertEqual(analysis.confidence, "high")
+                self.assertEqual(analysis.family, "rg")
+
+        oversized = analyzer.analyze_shell_command("x" * (1024 * 1024 + 1))
+        self.assertEqual(oversized.confidence, "opaque")
+        self.assertEqual(oversized.opaque_reason, "null_byte_or_invalid")
+
+    def test_simple_compound_forms_are_syntax_only_not_execution_claims(self):
+        cases = {
+            "git status && cargo test": ["git", "cargo test"],
+            "rg x src | head -20": ["rg", "head"],
+            "cd src; pytest": ["cd", "pytest"],
+            "git status 2>&1": ["git"],
+        }
+        for command, expected_families in cases.items():
+            with self.subTest(command_shape=expected_families):
+                analysis = analyzer.analyze_shell_command(command)
+                self.assertEqual(analysis.confidence, "partial")
+                self.assertEqual(
+                    [segment.family for segment in analysis.segments],
+                    expected_families,
+                )
+                self.assertTrue(
+                    all(segment.confidence == "partial" for segment in analysis.segments)
+                )
+
+        for command in (
+            'echo "$(secret-command)"',
+            "echo `secret-command`",
+            "if true; then secret-command; fi",
+            "cat <<EOF\nsecret-command\nEOF",
+            "(secret-command)",
+            "{ secret-command; }",
+            "PATH=/private/bin cargo test",
+        ):
+            with self.subTest(uncertain_shape=command.split()[0]):
+                analysis = analyzer.analyze_shell_command(command)
+                self.assertNotEqual(analysis.confidence, "high")
+                self.assertFalse(analysis.segments)
+
+    def test_validated_wrappers_and_benign_assignments_recover_single_commands(self):
+        cases = {
+            "MODE=test cargo test": "cargo test",
+            "env MODE=test rg needle src": "rg",
+            "command cargo test": "cargo test",
+            "timeout 5s cargo test": "cargo test",
+        }
+        for command, expected_family in cases.items():
+            with self.subTest(wrapper=command.split()[0]):
+                analysis = analyzer.analyze_shell_command(command)
+                self.assertEqual(analysis.confidence, "high")
+                self.assertEqual(analysis.family, expected_family)
+                self.assertFalse(analysis.segments)
+
+        active_analysis = analyzer.analyze_shell_command("MODE=test cargo test")
+        self.assertEqual(active_analysis.opaque_reason, "environment_assignment")
+        self.assertTrue(active_analysis.leading_assignment)
+        env_analysis = analyzer.analyze_shell_command("env MODE=test rg needle src")
+        self.assertEqual(env_analysis.wrapper, "env")
+        self.assertTrue(env_analysis.leading_assignment)
+
+        for command in (
+            "PATH=/private/bin cargo test",
+            "env -S 'cargo test'",
+            "command -v cargo",
+            "command MODE=test cargo test",
+            "timeout --signal cargo test",
+            "timeout 5s MODE=test cargo test",
+        ):
+            with self.subTest(unsafe_wrapper=command.split()[0]):
+                analysis = analyzer.analyze_shell_command(command)
+                self.assertNotEqual(analysis.confidence, "high")
+
+    def test_composite_output_is_not_multiplied_or_attributed_to_segments(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call("rg x src | head -20", call_id="pipeline"),
+                self.output("pipeline-secret-output\n", call_id="pipeline"),
+                self.call("MODE=test cargo test", call_id="assignment"),
+                self.output(
+                    "test result: ok. 12 passed\n",
+                    call_id="assignment",
+                ),
+            ]
+        )
+        report, markdown, _, _ = self.run_analyzer()
+        adapter = next(
+            row
+            for row in report["terse_adapters"]
+            if row["candidate_id"] == "rust_test_success"
+        )
+        self.assertEqual(adapter["calls"], 1)
+        self.assertEqual(adapter["matched_output_count"], 1)
+        self.assertEqual(self.family(report, "<opaque>")["output"]["matched_output_count"], 0)
+        self.assertEqual(
+            self.family(report, "cargo test")["output"]["matched_output_count"], 1
+        )
+        attribution = report["opaque_attribution"]
+        self.assertEqual(
+            attribution["summary"]["still_unattributable_output_bytes"],
+            len("pipeline-secret-output\n"),
+        )
+        self.assertEqual(
+            attribution["syntactic_segments"]["occurrence_count"], 2
+        )
+        combined = markdown + json.dumps(report)
+        self.assertNotIn("pipeline-secret-output", combined)
+        self.assertNotIn("test result: ok", combined)
+
+    def test_diagnostics_are_versioned_additive_and_private(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call(
+                    "SECRET_TOKEN=top-secret rg x /private/path | head -1",
+                    call_id="private-shape",
+                ),
+                self.output("private output excerpt\n", call_id="private-shape"),
+            ]
+        )
+        report, markdown, stdout, stderr = self.run_analyzer(
+            extra=("--fingerprint-salt", "private-test-salt")
+        )
+        diagnostics_path = self.output_dir / "opaque_command_diagnostics.json"
+        diagnostics_markdown_path = self.output_dir / "opaque_command_diagnostics.md"
+        diagnostics = json.loads(diagnostics_path.read_text())
+        diagnostics_markdown = diagnostics_markdown_path.read_text()
+        self.assertEqual(report["schema_version"], 2)
+        self.assertIn("opaque_attribution", report)
+        self.assertEqual(diagnostics["schema_version"], 2)
+        self.assertEqual(
+            diagnostics["summary"]["requested_commands"],
+            report["coverage"]["requested_underlying_subcommands"],
+        )
+        self.assertEqual(
+            sum(row["requested_commands"] for row in diagnostics["reasons"]),
+            report["coverage"]["legacy_v1_opaque_subcommands"],
+        )
+        self.assertTrue(
+            diagnostics["reconciliation"]["reconciles_to_opaque_subcommands"]
+        )
+        self.assertEqual(self.output_dir.stat().st_mode & 0o777, 0o700)
+        for path in (
+            self.output_dir / "command_frequency_report.md",
+            self.output_dir / "command_frequency_report.json",
+            diagnostics_path,
+            diagnostics_markdown_path,
+        ):
+            self.assertTrue(path.is_file())
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        combined = (
+            markdown
+            + json.dumps(report)
+            + diagnostics_markdown
+            + json.dumps(diagnostics)
+            + stdout
+            + stderr
+        )
+        for secret in (
+            "top-secret",
+            "/private/path",
+            "private output excerpt",
+            "private-session",
+            "/private/example/project",
+        ):
+            self.assertNotIn(secret, combined)
 
     def test_ambiguous_and_unmatched_outputs_are_reported_conservatively(self):
         self.write_rollout(
@@ -550,7 +754,12 @@ class AnalyzerFixture(unittest.TestCase):
             json.dumps(first, sort_keys=True),
             json.dumps(second, sort_keys=True),
         )
-        for filename in ("command_frequency_report.md", "command_frequency_report.json"):
+        for filename in (
+            "command_frequency_report.md",
+            "command_frequency_report.json",
+            "opaque_command_diagnostics.md",
+            "opaque_command_diagnostics.json",
+        ):
             self.assertEqual(
                 (self.root / "first" / filename).read_bytes(),
                 (self.root / "second" / filename).read_bytes(),
@@ -575,7 +784,12 @@ class AnalyzerFixture(unittest.TestCase):
         )
         self.run_analyzer()
         self.assertEqual(self.output_dir.stat().st_mode & 0o777, 0o700)
-        for name in ("command_frequency_report.md", "command_frequency_report.json"):
+        for name in (
+            "command_frequency_report.md",
+            "command_frequency_report.json",
+            "opaque_command_diagnostics.md",
+            "opaque_command_diagnostics.json",
+        ):
             path = self.output_dir / name
             self.assertTrue(path.is_file())
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
