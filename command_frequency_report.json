@@ -1,0 +1,2895 @@
+{
+  "analysis_scope": {
+    "date_window": {
+      "inclusive": true,
+      "since": "2026-11-01",
+      "until": null
+    },
+    "include_archived": false,
+    "limits": {
+      "max_file_bytes": 33554432,
+      "max_files": 12,
+      "max_line_bytes": 16777216,
+      "max_total_bytes": 268435456
+    },
+    "source_categories": {
+      "sessions": 12
+    }
+  },
+  "batching": {
+    "batch_tool_invocations": 87,
+    "consecutive_direct_tool_pairs_heuristic": 3223,
+    "dry_run_batch_invocations": 0,
+    "dry_run_subcommands": 0,
+    "execution_forms": {
+      "direct": 3232,
+      "proxy_batch": 1,
+      "shell_batch": 86
+    },
+    "observed_subcommand_outcomes": {
+      "failed": 189,
+      "succeeded": 2541,
+      "unknown": 734
+    },
+    "requested_subcommands": 3464,
+    "top_consecutive_shape_pairs_heuristic": [
+      {
+        "first_shape": "<opaque shell form>",
+        "pairs": 1662,
+        "second_shape": "<opaque shell form>"
+      },
+      {
+        "first_shape": "<opaque shell form>",
+        "pairs": 107,
+        "second_shape": "sed -n <arg> <arg>"
+      },
+      {
+        "first_shape": "sed -n <arg> <arg>",
+        "pairs": 107,
+        "second_shape": "<opaque shell form>"
+      },
+      {
+        "first_shape": "sed -n <arg> <arg>",
+        "pairs": 69,
+        "second_shape": "sed -n <arg> <arg>"
+      },
+      {
+        "first_shape": "cat <arg>",
+        "pairs": 45,
+        "second_shape": "<opaque shell form>"
+      },
+      {
+        "first_shape": "cat <arg>",
+        "pairs": 45,
+        "second_shape": "cat <arg>"
+      },
+      {
+        "first_shape": "<opaque shell form>",
+        "pairs": 41,
+        "second_shape": "cat <arg>"
+      },
+      {
+        "first_shape": "<opaque shell form>",
+        "pairs": 34,
+        "second_shape": "rg -n <pattern> <paths>"
+      },
+      {
+        "first_shape": "rg -n <pattern> <paths>",
+        "pairs": 30,
+        "second_shape": "<opaque shell form>"
+      },
+      {
+        "first_shape": "git push",
+        "pairs": 22,
+        "second_shape": "<opaque shell form>"
+      }
+    ],
+    "warning": "Consecutive calls are an upper-bound heuristic only; they do not prove that a model decision was unnecessary between commands."
+  },
+  "command_frequency": {
+    "fingerprints": {},
+    "non_shell_tool_families": [
+      {
+        "calls": 1062,
+        "tool": "write_stdin"
+      },
+      {
+        "calls": 1056,
+        "tool": "apply_patch"
+      },
+      {
+        "calls": 267,
+        "tool": "exec"
+      },
+      {
+        "calls": 62,
+        "tool": "web__run"
+      },
+      {
+        "calls": 41,
+        "tool": "_web_run"
+      },
+      {
+        "calls": 6,
+        "tool": "spawn_agent"
+      },
+      {
+        "calls": 5,
+        "tool": "_get_app_permissions"
+      },
+      {
+        "calls": 4,
+        "tool": "_search_plugins"
+      },
+      {
+        "calls": 4,
+        "tool": "clock__curr_time"
+      },
+      {
+        "calls": 4,
+        "tool": "list_agents"
+      },
+      {
+        "calls": 3,
+        "tool": "_get_plugin_dependencies"
+      },
+      {
+        "calls": 3,
+        "tool": "_uninstall_app"
+      },
+      {
+        "calls": 3,
+        "tool": "sleep"
+      },
+      {
+        "calls": 2,
+        "tool": "send_message"
+      },
+      {
+        "calls": 2,
+        "tool": "wait"
+      },
+      {
+        "calls": 1,
+        "tool": "_search_installed_repositories_streaming"
+      },
+      {
+        "calls": 1,
+        "tool": "_search_installed_repositories_v2"
+      },
+      {
+        "calls": 1,
+        "tool": "_select_pet"
+      },
+      {
+        "calls": 1,
+        "tool": "wait_agent"
+      }
+    ],
+    "repeated_identical_invocation_excess": 836,
+    "shape_frequency_distribution": {
+      "frequency_10_plus": 30,
+      "frequency_2_to_4": 72,
+      "frequency_5_to_9": 21,
+      "singletons": 118
+    },
+    "shell_tool_families": [
+      {
+        "invocations": 3319,
+        "tool": "exec_command"
+      }
+    ],
+    "top_executable_families": [
+      {
+        "batched_calls": 12,
+        "calls": 2206,
+        "direct_calls": 2194,
+        "distinct_sessions": 8,
+        "family": "<opaque>",
+        "output": {
+          "captured_lines": 118546,
+          "captured_model_visible_bytes": 6341324,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 1056888,
+            "point": 1585331,
+            "upper": 2113775
+          },
+          "matched_output_count": 2061,
+          "max_bytes": 40226,
+          "median_bytes": 555,
+          "p90_bytes": 8599,
+          "p95_bytes": 16167,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 112,
+            "success": 1650,
+            "unknown": 299
+          },
+          "structural_feature_counts": {
+            "ansi": 12,
+            "assertion_location": 168,
+            "git_hunk": 42,
+            "repetitive_lines": 8,
+            "stack_trace": 60,
+            "success_lines": 109,
+            "timestamps": 58,
+            "truncated": 78,
+            "warnings": 52
+          }
+        },
+        "repeated_invocations": 371,
+        "status_counts": {
+          "failed": 112,
+          "success": 1650,
+          "unknown": 299
+        }
+      },
+      {
+        "batched_calls": 54,
+        "calls": 229,
+        "direct_calls": 175,
+        "distinct_sessions": 5,
+        "family": "git",
+        "output": {
+          "captured_lines": 4891,
+          "captured_model_visible_bytes": 213650,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 35609,
+            "point": 53413,
+            "upper": 71217
+          },
+          "matched_output_count": 171,
+          "max_bytes": 29517,
+          "median_bytes": 212,
+          "p90_bytes": 2238,
+          "p95_bytes": 6536,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 1,
+            "success": 161,
+            "unknown": 9
+          },
+          "structural_feature_counts": {
+            "assertion_location": 8,
+            "git_hunk": 9,
+            "success_lines": 2,
+            "timestamps": 1
+          }
+        },
+        "repeated_invocations": 112,
+        "status_counts": {
+          "failed": 1,
+          "success": 161,
+          "unknown": 9
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 229,
+        "direct_calls": 229,
+        "distinct_sessions": 6,
+        "family": "sed",
+        "output": {
+          "captured_lines": 41360,
+          "captured_model_visible_bytes": 1818999,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 303167,
+            "point": 454750,
+            "upper": 606333
+          },
+          "matched_output_count": 216,
+          "max_bytes": 40215,
+          "median_bytes": 5655,
+          "p90_bytes": 18563,
+          "p95_bytes": 23715,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 5,
+            "success": 202,
+            "unknown": 9
+          },
+          "structural_feature_counts": {
+            "assertion_location": 59,
+            "git_hunk": 1,
+            "success_lines": 27,
+            "timestamps": 1,
+            "truncated": 25,
+            "warnings": 3
+          }
+        },
+        "repeated_invocations": 12,
+        "status_counts": {
+          "failed": 5,
+          "success": 202,
+          "unknown": 9
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 118,
+        "direct_calls": 118,
+        "distinct_sessions": 6,
+        "family": "rg",
+        "output": {
+          "captured_lines": 3885,
+          "captured_model_visible_bytes": 379950,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 63325,
+            "point": 94988,
+            "upper": 126650
+          },
+          "matched_output_count": 93,
+          "max_bytes": 40227,
+          "median_bytes": 1548,
+          "p90_bytes": 10307,
+          "p95_bytes": 19090,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 9,
+            "success": 69,
+            "unknown": 15
+          },
+          "structural_feature_counts": {
+            "assertion_location": 13,
+            "success_lines": 7,
+            "truncated": 6,
+            "warnings": 6
+          }
+        },
+        "repeated_invocations": 0,
+        "status_counts": {
+          "failed": 9,
+          "success": 69,
+          "unknown": 15
+        }
+      },
+      {
+        "batched_calls": 61,
+        "calls": 108,
+        "direct_calls": 47,
+        "distinct_sessions": 4,
+        "family": "cargo test",
+        "output": {
+          "captured_lines": 2164,
+          "captured_model_visible_bytes": 120335,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 20056,
+            "point": 30084,
+            "upper": 40112
+          },
+          "matched_output_count": 47,
+          "max_bytes": 10075,
+          "median_bytes": 1557,
+          "p90_bytes": 5728,
+          "p95_bytes": 7201,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 14,
+            "success": 33
+          },
+          "structural_feature_counts": {
+            "assertion_location": 7,
+            "stack_trace": 10,
+            "success_lines": 43,
+            "warnings": 3
+          }
+        },
+        "repeated_invocations": 72,
+        "status_counts": {
+          "failed": 14,
+          "success": 33,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 104,
+        "direct_calls": 104,
+        "distinct_sessions": 7,
+        "family": "cat",
+        "output": {
+          "captured_lines": 4356,
+          "captured_model_visible_bytes": 401599,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 66934,
+            "point": 100400,
+            "upper": 133867
+          },
+          "matched_output_count": 94,
+          "max_bytes": 33205,
+          "median_bytes": 3087,
+          "p90_bytes": 5542,
+          "p95_bytes": 9719,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 88,
+            "unknown": 6
+          },
+          "structural_feature_counts": {
+            "assertion_location": 11,
+            "success_lines": 2,
+            "truncated": 2
+          }
+        },
+        "repeated_invocations": 65,
+        "status_counts": {
+          "failed": 0,
+          "success": 88,
+          "unknown": 6
+        }
+      },
+      {
+        "batched_calls": 48,
+        "calls": 56,
+        "direct_calls": 8,
+        "distinct_sessions": 4,
+        "family": "cargo fmt",
+        "output": {
+          "captured_lines": 342,
+          "captured_model_visible_bytes": 14121,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 2354,
+            "point": 3531,
+            "upper": 4707
+          },
+          "matched_output_count": 8,
+          "max_bytes": 7006,
+          "median_bytes": 102,
+          "p90_bytes": 7006,
+          "p95_bytes": 7006,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 4,
+            "success": 4
+          },
+          "structural_feature_counts": {
+            "assertion_location": 3,
+            "success_lines": 1
+          }
+        },
+        "repeated_invocations": 48,
+        "status_counts": {
+          "failed": 4,
+          "success": 4,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 1,
+        "calls": 52,
+        "direct_calls": 51,
+        "distinct_sessions": 6,
+        "family": "codex",
+        "output": {
+          "captured_lines": 1942,
+          "captured_model_visible_bytes": 159453,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 26576,
+            "point": 39864,
+            "upper": 53151
+          },
+          "matched_output_count": 41,
+          "max_bytes": 40224,
+          "median_bytes": 1298,
+          "p90_bytes": 8927,
+          "p95_bytes": 12844,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 8,
+            "success": 25,
+            "unknown": 8
+          },
+          "structural_feature_counts": {
+            "timestamps": 5,
+            "truncated": 4,
+            "warnings": 15
+          }
+        },
+        "repeated_invocations": 21,
+        "status_counts": {
+          "failed": 8,
+          "success": 25,
+          "unknown": 8
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 39,
+        "direct_calls": 39,
+        "distinct_sessions": 1,
+        "family": "python",
+        "output": {
+          "captured_lines": 3749,
+          "captured_model_visible_bytes": 200504,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 33418,
+            "point": 50126,
+            "upper": 66835
+          },
+          "matched_output_count": 39,
+          "max_bytes": 22066,
+          "median_bytes": 1565,
+          "p90_bytes": 18739,
+          "p95_bytes": 20746,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 2,
+            "success": 28,
+            "unknown": 9
+          },
+          "structural_feature_counts": {
+            "assertion_location": 8,
+            "stack_trace": 2,
+            "success_lines": 8,
+            "timestamps": 14
+          }
+        },
+        "repeated_invocations": 19,
+        "status_counts": {
+          "failed": 2,
+          "success": 28,
+          "unknown": 9
+        }
+      },
+      {
+        "batched_calls": 20,
+        "calls": 37,
+        "direct_calls": 17,
+        "distinct_sessions": 3,
+        "family": "systemctl",
+        "output": {
+          "captured_lines": 124,
+          "captured_model_visible_bytes": 6731,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 1122,
+            "point": 1683,
+            "upper": 2244
+          },
+          "matched_output_count": 11,
+          "max_bytes": 2934,
+          "median_bytes": 206,
+          "p90_bytes": 1052,
+          "p95_bytes": 2934,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 2,
+            "success": 9
+          },
+          "structural_feature_counts": {
+            "timestamps": 5
+          }
+        },
+        "repeated_invocations": 21,
+        "status_counts": {
+          "failed": 2,
+          "success": 9,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 30,
+        "direct_calls": 30,
+        "distinct_sessions": 3,
+        "family": "jq",
+        "output": {
+          "captured_lines": 606,
+          "captured_model_visible_bytes": 27595,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 4600,
+            "point": 6899,
+            "upper": 9199
+          },
+          "matched_output_count": 27,
+          "max_bytes": 6187,
+          "median_bytes": 487,
+          "p90_bytes": 2880,
+          "p95_bytes": 3608,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 20,
+            "unknown": 7
+          },
+          "structural_feature_counts": {
+            "assertion_location": 1,
+            "repetitive_lines": 1,
+            "truncated": 1
+          }
+        },
+        "repeated_invocations": 0,
+        "status_counts": {
+          "failed": 0,
+          "success": 20,
+          "unknown": 7
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 22,
+        "direct_calls": 22,
+        "distinct_sessions": 5,
+        "family": "python3",
+        "output": {
+          "captured_lines": 411,
+          "captured_model_visible_bytes": 16336,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 2723,
+            "point": 4084,
+            "upper": 5446
+          },
+          "matched_output_count": 20,
+          "max_bytes": 10802,
+          "median_bytes": 113,
+          "p90_bytes": 1079,
+          "p95_bytes": 1513,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 1,
+            "success": 3,
+            "unknown": 16
+          },
+          "structural_feature_counts": {
+            "assertion_location": 1,
+            "stack_trace": 1,
+            "success_lines": 1
+          }
+        },
+        "repeated_invocations": 7,
+        "status_counts": {
+          "failed": 1,
+          "success": 3,
+          "unknown": 16
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 22,
+        "direct_calls": 22,
+        "distinct_sessions": 2,
+        "family": "wc",
+        "output": {
+          "captured_lines": 152,
+          "captured_model_visible_bytes": 3701,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 617,
+            "point": 926,
+            "upper": 1234
+          },
+          "matched_output_count": 22,
+          "max_bytes": 311,
+          "median_bytes": 155,
+          "p90_bytes": 184,
+          "p95_bytes": 311,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 22
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 15,
+        "status_counts": {
+          "failed": 0,
+          "success": 22,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 13,
+        "calls": 20,
+        "direct_calls": 7,
+        "distinct_sessions": 3,
+        "family": "cargo clippy",
+        "output": {
+          "captured_lines": 96,
+          "captured_model_visible_bytes": 4045,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 675,
+            "point": 1012,
+            "upper": 1349
+          },
+          "matched_output_count": 7,
+          "max_bytes": 1318,
+          "median_bytes": 391,
+          "p90_bytes": 1318,
+          "p95_bytes": 1318,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 2,
+            "success": 4,
+            "unknown": 1
+          },
+          "structural_feature_counts": {
+            "repetitive_lines": 1,
+            "warnings": 1
+          }
+        },
+        "repeated_invocations": 14,
+        "status_counts": {
+          "failed": 2,
+          "success": 4,
+          "unknown": 1
+        }
+      },
+      {
+        "batched_calls": 8,
+        "calls": 12,
+        "direct_calls": 4,
+        "distinct_sessions": 4,
+        "family": "cargo build",
+        "output": {
+          "captured_lines": 27,
+          "captured_model_visible_bytes": 952,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 159,
+            "point": 238,
+            "upper": 318
+          },
+          "matched_output_count": 4,
+          "max_bytes": 251,
+          "median_bytes": 251,
+          "p90_bytes": 251,
+          "p95_bytes": 251,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 3,
+            "unknown": 1
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 10,
+        "status_counts": {
+          "failed": 0,
+          "success": 3,
+          "unknown": 1
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 11,
+        "direct_calls": 11,
+        "distinct_sessions": 1,
+        "family": "go test",
+        "output": {
+          "captured_lines": 113,
+          "captured_model_visible_bytes": 5403,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 901,
+            "point": 1351,
+            "upper": 1801
+          },
+          "matched_output_count": 11,
+          "max_bytes": 1631,
+          "median_bytes": 383,
+          "p90_bytes": 522,
+          "p95_bytes": 1631,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 1,
+            "success": 10
+          },
+          "structural_feature_counts": {
+            "stack_trace": 1
+          }
+        },
+        "repeated_invocations": 8,
+        "status_counts": {
+          "failed": 1,
+          "success": 10,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 11,
+        "direct_calls": 11,
+        "distinct_sessions": 1,
+        "family": "python -m py_compile",
+        "output": {
+          "captured_lines": 55,
+          "captured_model_visible_bytes": 1122,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 187,
+            "point": 281,
+            "upper": 374
+          },
+          "matched_output_count": 11,
+          "max_bytes": 102,
+          "median_bytes": 102,
+          "p90_bytes": 102,
+          "p95_bytes": 102,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 11
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 0,
+        "status_counts": {
+          "failed": 0,
+          "success": 11,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 11,
+        "direct_calls": 11,
+        "distinct_sessions": 1,
+        "family": "python -m unittest",
+        "output": {
+          "captured_lines": 195,
+          "captured_model_visible_bytes": 17765,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 2961,
+            "point": 4442,
+            "upper": 5922
+          },
+          "matched_output_count": 11,
+          "max_bytes": 1965,
+          "median_bytes": 1789,
+          "p90_bytes": 1837,
+          "p95_bytes": 1965,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 2,
+            "unknown": 9
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 9,
+        "status_counts": {
+          "failed": 0,
+          "success": 2,
+          "unknown": 9
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 10,
+        "direct_calls": 10,
+        "distinct_sessions": 3,
+        "family": "find",
+        "output": {
+          "captured_lines": 52,
+          "captured_model_visible_bytes": 1103,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 184,
+            "point": 276,
+            "upper": 368
+          },
+          "matched_output_count": 10,
+          "max_bytes": 173,
+          "median_bytes": 102,
+          "p90_bytes": 114,
+          "p95_bytes": 173,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 9,
+            "unknown": 1
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 1,
+        "status_counts": {
+          "failed": 0,
+          "success": 9,
+          "unknown": 1
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 9,
+        "direct_calls": 9,
+        "distinct_sessions": 3,
+        "family": "tail",
+        "output": {
+          "captured_lines": 681,
+          "captured_model_visible_bytes": 104814,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 17469,
+            "point": 26204,
+            "upper": 34938
+          },
+          "matched_output_count": 9,
+          "max_bytes": 40213,
+          "median_bytes": 4211,
+          "p90_bytes": 40213,
+          "p95_bytes": 40213,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 8,
+            "unknown": 1
+          },
+          "structural_feature_counts": {
+            "assertion_location": 4,
+            "stack_trace": 1,
+            "success_lines": 1,
+            "timestamps": 2,
+            "truncated": 2,
+            "warnings": 1
+          }
+        },
+        "repeated_invocations": 0,
+        "status_counts": {
+          "failed": 0,
+          "success": 8,
+          "unknown": 1
+        }
+      }
+    ],
+    "top_normalized_shapes": [
+      {
+        "batched_calls": 12,
+        "calls": 2206,
+        "direct_calls": 2194,
+        "distinct_sessions": 8,
+        "output": {
+          "captured_lines": 118546,
+          "captured_model_visible_bytes": 6341324,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 1056888,
+            "point": 1585331,
+            "upper": 2113775
+          },
+          "matched_output_count": 2061,
+          "max_bytes": 40226,
+          "median_bytes": 555,
+          "p90_bytes": 8599,
+          "p95_bytes": 16167,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 112,
+            "success": 1650,
+            "unknown": 299
+          },
+          "structural_feature_counts": {
+            "ansi": 12,
+            "assertion_location": 168,
+            "git_hunk": 42,
+            "repetitive_lines": 8,
+            "stack_trace": 60,
+            "success_lines": 109,
+            "timestamps": 58,
+            "truncated": 78,
+            "warnings": 52
+          }
+        },
+        "repeated_invocations": 371,
+        "shape": "<opaque shell form>",
+        "status_counts": {
+          "failed": 112,
+          "success": 1650,
+          "unknown": 299
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 224,
+        "direct_calls": 224,
+        "distinct_sessions": 6,
+        "output": {
+          "captured_lines": 41216,
+          "captured_model_visible_bytes": 1815350,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 302559,
+            "point": 453838,
+            "upper": 605117
+          },
+          "matched_output_count": 211,
+          "max_bytes": 40215,
+          "median_bytes": 6185,
+          "p90_bytes": 18563,
+          "p95_bytes": 23715,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 4,
+            "success": 198,
+            "unknown": 9
+          },
+          "structural_feature_counts": {
+            "assertion_location": 59,
+            "git_hunk": 1,
+            "success_lines": 27,
+            "timestamps": 1,
+            "truncated": 25,
+            "warnings": 3
+          }
+        },
+        "repeated_invocations": 12,
+        "shape": "sed -n <arg> <arg>",
+        "status_counts": {
+          "failed": 4,
+          "success": 198,
+          "unknown": 9
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 104,
+        "direct_calls": 104,
+        "distinct_sessions": 7,
+        "output": {
+          "captured_lines": 4356,
+          "captured_model_visible_bytes": 401599,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 66934,
+            "point": 100400,
+            "upper": 133867
+          },
+          "matched_output_count": 94,
+          "max_bytes": 33205,
+          "median_bytes": 3087,
+          "p90_bytes": 5542,
+          "p95_bytes": 9719,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 88,
+            "unknown": 6
+          },
+          "structural_feature_counts": {
+            "assertion_location": 11,
+            "success_lines": 2,
+            "truncated": 2
+          }
+        },
+        "repeated_invocations": 65,
+        "shape": "cat <arg>",
+        "status_counts": {
+          "failed": 0,
+          "success": 88,
+          "unknown": 6
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 57,
+        "direct_calls": 57,
+        "distinct_sessions": 5,
+        "output": {
+          "captured_lines": 1389,
+          "captured_model_visible_bytes": 148900,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 24817,
+            "point": 37225,
+            "upper": 49634
+          },
+          "matched_output_count": 44,
+          "max_bytes": 28155,
+          "median_bytes": 860,
+          "p90_bytes": 10307,
+          "p95_bytes": 16182,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 2,
+            "success": 34,
+            "unknown": 8
+          },
+          "structural_feature_counts": {
+            "assertion_location": 5,
+            "success_lines": 4,
+            "truncated": 1,
+            "warnings": 1
+          }
+        },
+        "repeated_invocations": 0,
+        "shape": "rg -n <pattern> <paths>",
+        "status_counts": {
+          "failed": 2,
+          "success": 34,
+          "unknown": 8
+        }
+      },
+      {
+        "batched_calls": 34,
+        "calls": 37,
+        "direct_calls": 3,
+        "distinct_sessions": 2,
+        "output": {
+          "captured_lines": 15,
+          "captured_model_visible_bytes": 306,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 51,
+            "point": 77,
+            "upper": 102
+          },
+          "matched_output_count": 3,
+          "max_bytes": 102,
+          "median_bytes": 102,
+          "p90_bytes": 102,
+          "p95_bytes": 102,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 3
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 36,
+        "shape": "cargo fmt --all",
+        "status_counts": {
+          "failed": 0,
+          "success": 3,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 11,
+        "calls": 29,
+        "direct_calls": 18,
+        "distinct_sessions": 4,
+        "output": {
+          "captured_lines": 87,
+          "captured_model_visible_bytes": 1932,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 322,
+            "point": 483,
+            "upper": 644
+          },
+          "matched_output_count": 17,
+          "max_bytes": 300,
+          "median_bytes": 102,
+          "p90_bytes": 102,
+          "p95_bytes": 300,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 1,
+            "success": 16
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 25,
+        "shape": "git diff --check",
+        "status_counts": {
+          "failed": 1,
+          "success": 16,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 28,
+        "direct_calls": 28,
+        "distinct_sessions": 3,
+        "output": {
+          "captured_lines": 590,
+          "captured_model_visible_bytes": 23248,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 3875,
+            "point": 5812,
+            "upper": 7750
+          },
+          "matched_output_count": 28,
+          "max_bytes": 18219,
+          "median_bytes": 198,
+          "p90_bytes": 202,
+          "p95_bytes": 202,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 22,
+            "unknown": 6
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 26,
+        "shape": "git push",
+        "status_counts": {
+          "failed": 0,
+          "success": 22,
+          "unknown": 6
+        }
+      },
+      {
+        "batched_calls": 10,
+        "calls": 23,
+        "direct_calls": 13,
+        "distinct_sessions": 2,
+        "output": {
+          "captured_lines": 665,
+          "captured_model_visible_bytes": 43584,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 7264,
+            "point": 10896,
+            "upper": 14528
+          },
+          "matched_output_count": 13,
+          "max_bytes": 5728,
+          "median_bytes": 3443,
+          "p90_bytes": 5533,
+          "p95_bytes": 5728,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 6,
+            "success": 7
+          },
+          "structural_feature_counts": {
+            "assertion_location": 3,
+            "stack_trace": 3,
+            "success_lines": 10,
+            "warnings": 2
+          }
+        },
+        "repeated_invocations": 17,
+        "shape": "cargo test --lib",
+        "status_counts": {
+          "failed": 6,
+          "success": 7,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 2,
+        "calls": 23,
+        "direct_calls": 21,
+        "distinct_sessions": 3,
+        "output": {
+          "captured_lines": 183,
+          "captured_model_visible_bytes": 4521,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 754,
+            "point": 1131,
+            "upper": 1507
+          },
+          "matched_output_count": 21,
+          "max_bytes": 782,
+          "median_bytes": 134,
+          "p90_bytes": 393,
+          "p95_bytes": 460,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 20,
+            "unknown": 1
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 22,
+        "shape": "git status --short --branch",
+        "status_counts": {
+          "failed": 0,
+          "success": 20,
+          "unknown": 1
+        }
+      },
+      {
+        "batched_calls": 18,
+        "calls": 22,
+        "direct_calls": 4,
+        "distinct_sessions": 3,
+        "output": {
+          "captured_lines": 41,
+          "captured_model_visible_bytes": 1048,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 175,
+            "point": 262,
+            "upper": 350
+          },
+          "matched_output_count": 4,
+          "max_bytes": 742,
+          "median_bytes": 102,
+          "p90_bytes": 742,
+          "p95_bytes": 742,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 4
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 19,
+        "shape": "systemctl --user <arg> <arg>",
+        "status_counts": {
+          "failed": 0,
+          "success": 4,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 10,
+        "calls": 21,
+        "direct_calls": 11,
+        "distinct_sessions": 1,
+        "output": {
+          "captured_lines": 253,
+          "captured_model_visible_bytes": 14001,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 2334,
+            "point": 3501,
+            "upper": 4667
+          },
+          "matched_output_count": 11,
+          "max_bytes": 4113,
+          "median_bytes": 886,
+          "p90_bytes": 1888,
+          "p95_bytes": 4113,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 3,
+            "success": 8
+          },
+          "structural_feature_counts": {
+            "assertion_location": 2,
+            "stack_trace": 3,
+            "success_lines": 11
+          }
+        },
+        "repeated_invocations": 15,
+        "shape": "cargo test --test --nocapture",
+        "status_counts": {
+          "failed": 3,
+          "success": 8,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 19,
+        "direct_calls": 19,
+        "distinct_sessions": 1,
+        "output": {
+          "captured_lines": 2729,
+          "captured_model_visible_bytes": 174208,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 29035,
+            "point": 43552,
+            "upper": 58070
+          },
+          "matched_output_count": 19,
+          "max_bytes": 22066,
+          "median_bytes": 11112,
+          "p90_bytes": 20746,
+          "p95_bytes": 22066,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 2,
+            "success": 8,
+            "unknown": 9
+          },
+          "structural_feature_counts": {
+            "assertion_location": 8,
+            "stack_trace": 2,
+            "success_lines": 8
+          }
+        },
+        "repeated_invocations": 18,
+        "shape": "python --browser <arg>",
+        "status_counts": {
+          "failed": 2,
+          "success": 8,
+          "unknown": 9
+        }
+      },
+      {
+        "batched_calls": 15,
+        "calls": 18,
+        "direct_calls": 3,
+        "distinct_sessions": 1,
+        "output": {
+          "captured_lines": 142,
+          "captured_model_visible_bytes": 7726,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 1288,
+            "point": 1932,
+            "upper": 2576
+          },
+          "matched_output_count": 3,
+          "max_bytes": 3002,
+          "median_bytes": 2553,
+          "p90_bytes": 3002,
+          "p95_bytes": 3002,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 1,
+            "success": 2
+          },
+          "structural_feature_counts": {
+            "stack_trace": 1,
+            "success_lines": 3
+          }
+        },
+        "repeated_invocations": 9,
+        "shape": "cargo test --test",
+        "status_counts": {
+          "failed": 1,
+          "success": 2,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 16,
+        "direct_calls": 16,
+        "distinct_sessions": 4,
+        "output": {
+          "captured_lines": 1066,
+          "captured_model_visible_bytes": 78579,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 13097,
+            "point": 19645,
+            "upper": 26193
+          },
+          "matched_output_count": 12,
+          "max_bytes": 40156,
+          "median_bytes": 2482,
+          "p90_bytes": 11178,
+          "p95_bytes": 40156,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 10,
+            "unknown": 2
+          },
+          "structural_feature_counts": {
+            "assertion_location": 5,
+            "success_lines": 2,
+            "truncated": 2,
+            "warnings": 2
+          }
+        },
+        "repeated_invocations": 0,
+        "shape": "rg -n -C <pattern> <paths>",
+        "status_counts": {
+          "failed": 0,
+          "success": 10,
+          "unknown": 2
+        }
+      },
+      {
+        "batched_calls": 8,
+        "calls": 15,
+        "direct_calls": 7,
+        "distinct_sessions": 3,
+        "output": {
+          "captured_lines": 242,
+          "captured_model_visible_bytes": 12335,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 2056,
+            "point": 3084,
+            "upper": 4112
+          },
+          "matched_output_count": 7,
+          "max_bytes": 5422,
+          "median_bytes": 1074,
+          "p90_bytes": 5422,
+          "p95_bytes": 5422,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 7
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 0,
+        "shape": "git commit -m",
+        "status_counts": {
+          "failed": 0,
+          "success": 7,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 1,
+        "calls": 15,
+        "direct_calls": 14,
+        "distinct_sessions": 3,
+        "output": {
+          "captured_lines": 174,
+          "captured_model_visible_bytes": 9048,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 1508,
+            "point": 2262,
+            "upper": 3016
+          },
+          "matched_output_count": 14,
+          "max_bytes": 1175,
+          "median_bytes": 526,
+          "p90_bytes": 1112,
+          "p95_bytes": 1175,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 14
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 0,
+        "shape": "git commit -m -m",
+        "status_counts": {
+          "failed": 0,
+          "success": 14,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 15,
+        "direct_calls": 15,
+        "distinct_sessions": 3,
+        "output": {
+          "captured_lines": 333,
+          "captured_model_visible_bytes": 7882,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 1314,
+            "point": 1971,
+            "upper": 2628
+          },
+          "matched_output_count": 13,
+          "max_bytes": 2134,
+          "median_bytes": 409,
+          "p90_bytes": 1167,
+          "p95_bytes": 2134,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 9,
+            "unknown": 4
+          },
+          "structural_feature_counts": {
+            "truncated": 1
+          }
+        },
+        "repeated_invocations": 0,
+        "shape": "jq <arg> <arg>",
+        "status_counts": {
+          "failed": 0,
+          "success": 9,
+          "unknown": 4
+        }
+      },
+      {
+        "batched_calls": 2,
+        "calls": 14,
+        "direct_calls": 12,
+        "distinct_sessions": 3,
+        "output": {
+          "captured_lines": 2488,
+          "captured_model_visible_bytes": 100377,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 16730,
+            "point": 25095,
+            "upper": 33459
+          },
+          "matched_output_count": 9,
+          "max_bytes": 29517,
+          "median_bytes": 7904,
+          "p90_bytes": 29517,
+          "p95_bytes": 29517,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 8,
+            "unknown": 1
+          },
+          "structural_feature_counts": {
+            "assertion_location": 7,
+            "git_hunk": 9,
+            "success_lines": 2
+          }
+        },
+        "repeated_invocations": 0,
+        "shape": "git diff",
+        "status_counts": {
+          "failed": 0,
+          "success": 8,
+          "unknown": 1
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 14,
+        "direct_calls": 14,
+        "distinct_sessions": 1,
+        "output": {
+          "captured_lines": 982,
+          "captured_model_visible_bytes": 25491,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 4249,
+            "point": 6373,
+            "upper": 8497
+          },
+          "matched_output_count": 14,
+          "max_bytes": 2031,
+          "median_bytes": 2026,
+          "p90_bytes": 2030,
+          "p95_bytes": 2031,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 14
+          },
+          "structural_feature_counts": {
+            "timestamps": 14
+          }
+        },
+        "repeated_invocations": 0,
+        "shape": "python --iterations --json <arg> <arg> <arg>",
+        "status_counts": {
+          "failed": 0,
+          "success": 14,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 14,
+        "direct_calls": 14,
+        "distinct_sessions": 3,
+        "output": {
+          "captured_lines": 763,
+          "captured_model_visible_bytes": 67945,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 11325,
+            "point": 16987,
+            "upper": 22649
+          },
+          "matched_output_count": 14,
+          "max_bytes": 20544,
+          "median_bytes": 3140,
+          "p90_bytes": 13979,
+          "p95_bytes": 20544,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 14
+          },
+          "structural_feature_counts": {
+            "assertion_location": 1
+          }
+        },
+        "repeated_invocations": 0,
+        "shape": "rg -n -g <pattern> <paths>",
+        "status_counts": {
+          "failed": 0,
+          "success": 14,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 12,
+        "calls": 13,
+        "direct_calls": 1,
+        "distinct_sessions": 2,
+        "output": {
+          "captured_lines": 5,
+          "captured_model_visible_bytes": 113,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 19,
+            "point": 29,
+            "upper": 38
+          },
+          "matched_output_count": 1,
+          "max_bytes": 113,
+          "median_bytes": 113,
+          "p90_bytes": 113,
+          "p95_bytes": 113,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "unknown": 1
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 12,
+        "shape": "cargo clippy --all-targets -D",
+        "status_counts": {
+          "failed": 0,
+          "success": 0,
+          "unknown": 1
+        }
+      },
+      {
+        "batched_calls": 13,
+        "calls": 13,
+        "direct_calls": 0,
+        "distinct_sessions": 3,
+        "output": {
+          "captured_lines": 0,
+          "captured_model_visible_bytes": 0,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 0,
+            "point": 0,
+            "upper": 0
+          },
+          "matched_output_count": 0,
+          "max_bytes": 0,
+          "median_bytes": 0,
+          "p90_bytes": 0,
+          "p95_bytes": 0,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {},
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 11,
+        "shape": "cargo test",
+        "status_counts": {
+          "failed": 0,
+          "success": 0,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 11,
+        "calls": 13,
+        "direct_calls": 2,
+        "distinct_sessions": 1,
+        "output": {
+          "captured_lines": 235,
+          "captured_model_visible_bytes": 17276,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 2880,
+            "point": 4319,
+            "upper": 5759
+          },
+          "matched_output_count": 2,
+          "max_bytes": 10075,
+          "median_bytes": 7201,
+          "p90_bytes": 10075,
+          "p95_bytes": 10075,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 2
+          },
+          "structural_feature_counts": {
+            "success_lines": 2
+          }
+        },
+        "repeated_invocations": 12,
+        "shape": "cargo test --all-targets",
+        "status_counts": {
+          "failed": 0,
+          "success": 2,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 10,
+        "calls": 13,
+        "direct_calls": 3,
+        "distinct_sessions": 2,
+        "output": {
+          "captured_lines": 15,
+          "captured_model_visible_bytes": 306,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 51,
+            "point": 77,
+            "upper": 102
+          },
+          "matched_output_count": 3,
+          "max_bytes": 102,
+          "median_bytes": 102,
+          "p90_bytes": 102,
+          "p95_bytes": 102,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 3
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 0,
+        "shape": "git add",
+        "status_counts": {
+          "failed": 0,
+          "success": 3,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 13,
+        "direct_calls": 13,
+        "distinct_sessions": 1,
+        "output": {
+          "captured_lines": 78,
+          "captured_model_visible_bytes": 1975,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 330,
+            "point": 494,
+            "upper": 659
+          },
+          "matched_output_count": 13,
+          "max_bytes": 155,
+          "median_bytes": 155,
+          "p90_bytes": 155,
+          "p95_bytes": 155,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 13
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 11,
+        "shape": "wc -l <arg>",
+        "status_counts": {
+          "failed": 0,
+          "success": 13,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 11,
+        "calls": 12,
+        "direct_calls": 1,
+        "distinct_sessions": 1,
+        "output": {
+          "captured_lines": 155,
+          "captured_model_visible_bytes": 7006,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 1168,
+            "point": 1752,
+            "upper": 2336
+          },
+          "matched_output_count": 1,
+          "max_bytes": 7006,
+          "median_bytes": 7006,
+          "p90_bytes": 7006,
+          "p95_bytes": 7006,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "failed": 1
+          },
+          "structural_feature_counts": {
+            "assertion_location": 1
+          }
+        },
+        "repeated_invocations": 11,
+        "shape": "cargo fmt --all --check",
+        "status_counts": {
+          "failed": 1,
+          "success": 0,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 6,
+        "calls": 12,
+        "direct_calls": 6,
+        "distinct_sessions": 4,
+        "output": {
+          "captured_lines": 87,
+          "captured_model_visible_bytes": 2196,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 366,
+            "point": 549,
+            "upper": 732
+          },
+          "matched_output_count": 6,
+          "max_bytes": 1124,
+          "median_bytes": 237,
+          "p90_bytes": 1124,
+          "p95_bytes": 1124,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 6
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 11,
+        "shape": "git status --short",
+        "status_counts": {
+          "failed": 0,
+          "success": 6,
+          "unknown": 0
+        }
+      },
+      {
+        "batched_calls": 8,
+        "calls": 11,
+        "direct_calls": 3,
+        "distinct_sessions": 4,
+        "output": {
+          "captured_lines": 20,
+          "captured_model_visible_bytes": 701,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 117,
+            "point": 176,
+            "upper": 234
+          },
+          "matched_output_count": 3,
+          "max_bytes": 251,
+          "median_bytes": 251,
+          "p90_bytes": 251,
+          "p95_bytes": 251,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 2,
+            "unknown": 1
+          },
+          "structural_feature_counts": {}
+        },
+        "repeated_invocations": 10,
+        "shape": "cargo build --release",
+        "status_counts": {
+          "failed": 0,
+          "success": 2,
+          "unknown": 1
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 11,
+        "direct_calls": 11,
+        "distinct_sessions": 2,
+        "output": {
+          "captured_lines": 233,
+          "captured_model_visible_bytes": 16969,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 2829,
+            "point": 4243,
+            "upper": 5657
+          },
+          "matched_output_count": 10,
+          "max_bytes": 6187,
+          "median_bytes": 798,
+          "p90_bytes": 3608,
+          "p95_bytes": 6187,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 9,
+            "unknown": 1
+          },
+          "structural_feature_counts": {
+            "assertion_location": 1
+          }
+        },
+        "repeated_invocations": 0,
+        "shape": "jq -r <arg> <arg>",
+        "status_counts": {
+          "failed": 0,
+          "success": 9,
+          "unknown": 1
+        }
+      },
+      {
+        "batched_calls": 0,
+        "calls": 10,
+        "direct_calls": 10,
+        "distinct_sessions": 4,
+        "output": {
+          "captured_lines": 393,
+          "captured_model_visible_bytes": 14718,
+          "estimated_observation_tokens": {
+            "confidence": "heuristic_bytes_per_token",
+            "lower": 2453,
+            "point": 3680,
+            "upper": 4906
+          },
+          "matched_output_count": 7,
+          "max_bytes": 4378,
+          "median_bytes": 1401,
+          "p90_bytes": 4378,
+          "p95_bytes": 4378,
+          "provider_measured_uncached_input_tokens": null,
+          "separate_stream_bytes": 0,
+          "separate_stream_observations": 0,
+          "status_counts": {
+            "success": 5,
+            "unknown": 2
+          },
+          "structural_feature_counts": {
+            "warnings": 2
+          }
+        },
+        "repeated_invocations": 5,
+        "shape": "codex --help <arg>",
+        "status_counts": {
+          "failed": 0,
+          "success": 5,
+          "unknown": 2
+        }
+      }
+    ],
+    "workload_categories": {
+      "build_or_lint": 40,
+      "filesystem_read": 354,
+      "git": 229,
+      "other": 2589,
+      "search": 118,
+      "validation": 134
+    }
+  },
+  "coverage": {
+    "ambiguous_output_events": 0,
+    "byte_limit_reached": false,
+    "composite_result_groups_unattributed": 70,
+    "conflicting_request_events": 0,
+    "discovered_files": 13,
+    "duplicate_output_events": 18,
+    "duplicate_request_events": 18,
+    "file_limit_reached": true,
+    "invalid_json_records": 3,
+    "invalid_utf8_records": 0,
+    "malformed_argument_events": 93,
+    "matched_result_groups": 3107,
+    "matched_shell_invocations": 3107,
+    "missing_timestamps": 0,
+    "non_shell_result_records": 2348,
+    "non_shell_tool_invocations": 2528,
+    "opaque_subcommands": 2206,
+    "oversized_records": 0,
+    "parsing_confidence": {
+      "high": 1258,
+      "opaque": 2206
+    },
+    "parsing_unknown_share": 0.636836,
+    "partial_trailing_records": 1,
+    "processed_files": 12,
+    "records": 38700,
+    "requested_underlying_subcommands": 3464,
+    "result_match_coverage": 0.936125,
+    "sessions": 10,
+    "shell_tool_invocations": 3319,
+    "skipped_symlinks": 0,
+    "subcommand_index_distribution": {
+      "1": 3319,
+      "2": 87,
+      "3": 45,
+      "4+": 13
+    },
+    "tool_result_records": 5525,
+    "truncated_files": 1,
+    "unmatched_result_records": 0,
+    "unreadable_files": 0
+  },
+  "limitations": [
+    "Session history size does not establish cache status or billed cost.",
+    "Unmatched, composite, truncated, malformed, and unsupported records reduce confidence.",
+    "Normalized shapes intentionally omit command arguments and exact paths.",
+    "The analyzer does not execute, replay, upload, or inspect workspace contents.",
+    "The batching-pair count is not a claim that those calls could or should be batched."
+  ],
+  "methodology": {
+    "observation_token_estimate": {
+      "lower_divisor_bytes_per_token": 6,
+      "point_divisor_bytes_per_token": 4,
+      "upper_divisor_bytes_per_token": 3,
+      "warning": "These are heuristic size estimates, not tokenizer counts and not provider-measured uncached input."
+    },
+    "output_attribution": "Only exact session/call-id matches with one non-composite observation are attributed. Batch output is never multiplied across subcommands.",
+    "read_only": true
+  },
+  "output_measurement": {
+    "binary_control_output_records": 0,
+    "cache_status": "not_measured",
+    "observed_model_visible_output": {
+      "captured_lines": 188927,
+      "captured_model_visible_bytes": 10162389,
+      "estimated_observation_tokens": {
+        "confidence": "heuristic_bytes_per_token",
+        "lower": 1693732,
+        "point": 2540598,
+        "upper": 3387463
+      },
+      "matched_output_count": 3107,
+      "max_bytes": 40227,
+      "median_bytes": 665,
+      "p90_bytes": 10005,
+      "p95_bytes": 16167,
+      "provider_measured_uncached_input_tokens": null,
+      "separate_stream_bytes": 0,
+      "separate_stream_observations": 0,
+      "status_counts": {
+        "failed": 189,
+        "success": 2470,
+        "unknown": 448
+      },
+      "structural_feature_counts": {
+        "ansi": 14,
+        "assertion_location": 295,
+        "git_hunk": 54,
+        "repetitive_lines": 10,
+        "stack_trace": 83,
+        "success_lines": 253,
+        "timestamps": 93,
+        "truncated": 118,
+        "warnings": 90
+      }
+    },
+    "provider_measured_uncached_input_tokens": null,
+    "total_attributed_output_bytes": 10162389,
+    "truncated_output_records": 118
+  },
+  "privacy": {
+    "exact_paths_included": false,
+    "fingerprints_included": false,
+    "prompts_included": false,
+    "raw_commands_included": false,
+    "raw_outputs_included": false
+  },
+  "schema_version": 1,
+  "smallest_safe_initial_set": [
+    "rust_test_success",
+    "compiler_linter"
+  ],
+  "terse_adapters": [
+    {
+      "calls": 108,
+      "candidate_id": "rust_test_success",
+      "delayed_seq_calls": 61,
+      "distinct_sessions": 4,
+      "edge_cases": "Doc tests, nextest, ignored tests, and doctest failures",
+      "fallback": "Retain warnings and all nonzero-exit output",
+      "implementation_complexity": "medium",
+      "information_loss_risks": "Hiding package-specific warnings or ignored-test context",
+      "matched_output_count": 47,
+      "observed_output": {
+        "captured_lines": 2164,
+        "captured_model_visible_bytes": 120335,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 20056,
+          "point": 30084,
+          "upper": 40112
+        },
+        "matched_output_count": 47,
+        "max_bytes": 10075,
+        "median_bytes": 1557,
+        "p90_bytes": 5728,
+        "p95_bytes": 7201,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "failed": 14,
+          "success": 33
+        },
+        "structural_feature_counts": {
+          "assertion_location": 7,
+          "stack_trace": 10,
+          "success_lines": 43,
+          "warnings": 3
+        }
+      },
+      "observed_output_bytes": 120335,
+      "safety_class": "safe_to_aggregate",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 11330,
+          "point": 16995,
+          "upper": 22660
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 344,
+          "point": 515,
+          "upper": 687
+        },
+        "removed_observed_bytes": 67979,
+        "status": "measured_on_observed_output",
+        "transformable_output_count": 33,
+        "transformations": {
+          "test_success": 33
+        }
+      },
+      "title": "Cargo test successful output"
+    },
+    {
+      "calls": 40,
+      "candidate_id": "compiler_linter",
+      "delayed_seq_calls": 24,
+      "distinct_sessions": 5,
+      "edge_cases": "Warnings, notes, dependency errors, and machine-readable formats",
+      "fallback": "Preserve any diagnostic text; aggregate only clean success",
+      "implementation_complexity": "medium",
+      "information_loss_risks": "Dropping a warning that the next command treats as an error",
+      "matched_output_count": 16,
+      "observed_output": {
+        "captured_lines": 327,
+        "captured_model_visible_bytes": 12407,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 2068,
+          "point": 3102,
+          "upper": 4136
+        },
+        "matched_output_count": 16,
+        "max_bytes": 6045,
+        "median_bytes": 251,
+        "p90_bytes": 1318,
+        "p95_bytes": 6045,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "failed": 4,
+          "success": 9,
+          "unknown": 3
+        },
+        "structural_feature_counts": {
+          "repetitive_lines": 1,
+          "warnings": 3
+        }
+      },
+      "observed_output_bytes": 12407,
+      "safety_class": "safe_to_aggregate",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 416,
+          "point": 624,
+          "upper": 832
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 47,
+          "point": 70,
+          "upper": 93
+        },
+        "removed_observed_bytes": 2495,
+        "status": "measured_on_observed_output",
+        "transformable_output_count": 9,
+        "transformations": {
+          "clean_success": 9
+        }
+      },
+      "title": "Compiler / linter output"
+    },
+    {
+      "calls": 118,
+      "candidate_id": "rg_grep",
+      "delayed_seq_calls": 0,
+      "distinct_sessions": 6,
+      "edge_cases": "ANSI controls, binary matches, context groups, and truncation",
+      "fallback": "Byte-for-byte passthrough on parse or encoding failure",
+      "implementation_complexity": "low",
+      "information_loss_risks": "Losing match context or stable result ordering",
+      "matched_output_count": 93,
+      "observed_output": {
+        "captured_lines": 3885,
+        "captured_model_visible_bytes": 379950,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 63325,
+          "point": 94988,
+          "upper": 126650
+        },
+        "matched_output_count": 93,
+        "max_bytes": 40227,
+        "median_bytes": 1548,
+        "p90_bytes": 10307,
+        "p95_bytes": 19090,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "failed": 9,
+          "success": 69,
+          "unknown": 15
+        },
+        "structural_feature_counts": {
+          "assertion_location": 13,
+          "success_lines": 7,
+          "truncated": 6,
+          "warnings": 6
+        }
+      },
+      "observed_output_bytes": 379950,
+      "safety_class": "safe_to_aggregate",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "removed_observed_bytes": 0,
+        "status": "no_reduction_observed_or_failure_passthrough",
+        "transformable_output_count": 0,
+        "transformations": {}
+      },
+      "title": "rg / grep output"
+    },
+    {
+      "calls": 11,
+      "candidate_id": "pytest_success",
+      "delayed_seq_calls": 0,
+      "distinct_sessions": 1,
+      "edge_cases": "Warnings, skips, xfails, collection errors, and plugin output",
+      "fallback": "Retain summaries/warnings; passthrough every failing run",
+      "implementation_complexity": "medium",
+      "information_loss_risks": "Removing a warning that later explains a failure",
+      "matched_output_count": 11,
+      "observed_output": {
+        "captured_lines": 195,
+        "captured_model_visible_bytes": 17765,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 2961,
+          "point": 4442,
+          "upper": 5922
+        },
+        "matched_output_count": 11,
+        "max_bytes": 1965,
+        "median_bytes": 1789,
+        "p90_bytes": 1837,
+        "p95_bytes": 1965,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "success": 2,
+          "unknown": 9
+        },
+        "structural_feature_counts": {}
+      },
+      "observed_output_bytes": 17765,
+      "safety_class": "safe_to_aggregate",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "removed_observed_bytes": 0,
+        "status": "no_reduction_observed_or_failure_passthrough",
+        "transformable_output_count": 0,
+        "transformations": {}
+      },
+      "title": "pytest successful output"
+    },
+    {
+      "calls": 4,
+      "candidate_id": "js_test_success",
+      "delayed_seq_calls": 0,
+      "distinct_sessions": 1,
+      "edge_cases": "Framework-specific reporters, snapshots, and coverage tables",
+      "fallback": "Keep summaries and warnings; passthrough failures",
+      "implementation_complexity": "medium",
+      "information_loss_risks": "Losing suite names or flaky-test warnings",
+      "matched_output_count": 4,
+      "observed_output": {
+        "captured_lines": 293,
+        "captured_model_visible_bytes": 8048,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 1342,
+          "point": 2012,
+          "upper": 2683
+        },
+        "matched_output_count": 4,
+        "max_bytes": 3275,
+        "median_bytes": 1748,
+        "p90_bytes": 3275,
+        "p95_bytes": 3275,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "failed": 1,
+          "success": 3
+        },
+        "structural_feature_counts": {
+          "assertion_location": 2
+        }
+      },
+      "observed_output_bytes": 8048,
+      "safety_class": "safe_to_aggregate",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "removed_observed_bytes": 0,
+        "status": "no_reduction_observed_or_failure_passthrough",
+        "transformable_output_count": 0,
+        "transformations": {}
+      },
+      "title": "JavaScript test successful output"
+    },
+    {
+      "calls": 11,
+      "candidate_id": "go_test_success",
+      "delayed_seq_calls": 0,
+      "distinct_sessions": 1,
+      "edge_cases": "Cached results, package failures, races, and multiple packages",
+      "fallback": "Retain one summary per package and all failures",
+      "implementation_complexity": "low",
+      "information_loss_risks": "Dropping package names needed to select a retry",
+      "matched_output_count": 11,
+      "observed_output": {
+        "captured_lines": 113,
+        "captured_model_visible_bytes": 5403,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 901,
+          "point": 1351,
+          "upper": 1801
+        },
+        "matched_output_count": 11,
+        "max_bytes": 1631,
+        "median_bytes": 383,
+        "p90_bytes": 522,
+        "p95_bytes": 1631,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "failed": 1,
+          "success": 10
+        },
+        "structural_feature_counts": {
+          "stack_trace": 1
+        }
+      },
+      "observed_output_bytes": 5403,
+      "safety_class": "safe_to_aggregate",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "removed_observed_bytes": 0,
+        "status": "no_reduction_observed_or_failure_passthrough",
+        "transformable_output_count": 0,
+        "transformations": {}
+      },
+      "title": "Go test successful output"
+    },
+    {
+      "calls": 376,
+      "candidate_id": "filesystem_read",
+      "delayed_seq_calls": 0,
+      "distinct_sessions": 8,
+      "edge_cases": "Binary files, encoding errors, globs, and context-dependent source",
+      "fallback": "Always passthrough",
+      "implementation_complexity": "high",
+      "information_loss_risks": "Silently omitting content the model needed to inspect",
+      "matched_output_count": 353,
+      "observed_output": {
+        "captured_lines": 46644,
+        "captured_model_visible_bytes": 2347350,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 391225,
+          "point": 586838,
+          "upper": 782450
+        },
+        "matched_output_count": 353,
+        "max_bytes": 40215,
+        "median_bytes": 4202,
+        "p90_bytes": 16243,
+        "p95_bytes": 22066,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "failed": 6,
+          "success": 330,
+          "unknown": 17
+        },
+        "structural_feature_counts": {
+          "assertion_location": 75,
+          "git_hunk": 1,
+          "stack_trace": 1,
+          "success_lines": 31,
+          "timestamps": 3,
+          "truncated": 29,
+          "warnings": 4
+        }
+      },
+      "observed_output_bytes": 2347350,
+      "safety_class": "passthrough",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "removed_observed_bytes": 0,
+        "status": "unknown_passthrough_recommended",
+        "transformable_output_count": 0,
+        "transformations": {}
+      },
+      "title": "Filesystem / source reads"
+    },
+    {
+      "calls": 53,
+      "candidate_id": "git_diff",
+      "delayed_seq_calls": 21,
+      "distinct_sessions": 5,
+      "edge_cases": "Combined diffs, binary patches, rename metadata, and truncation",
+      "fallback": "Passthrough; no terse transform recommended initially",
+      "implementation_complexity": "high",
+      "information_loss_risks": "Deleting context required for review or patch application",
+      "matched_output_count": 28,
+      "observed_output": {
+        "captured_lines": 2607,
+        "captured_model_visible_bytes": 103437,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 17240,
+          "point": 25860,
+          "upper": 34479
+        },
+        "matched_output_count": 28,
+        "max_bytes": 29517,
+        "median_bytes": 102,
+        "p90_bytes": 14235,
+        "p95_bytes": 20358,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "failed": 1,
+          "success": 26,
+          "unknown": 1
+        },
+        "structural_feature_counts": {
+          "assertion_location": 7,
+          "git_hunk": 9,
+          "success_lines": 2
+        }
+      },
+      "observed_output_bytes": 103437,
+      "safety_class": "requires_original_output_recovery",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "removed_observed_bytes": 0,
+        "status": "unknown_passthrough_recommended",
+        "transformable_output_count": 0,
+        "transformations": {}
+      },
+      "title": "git diff"
+    },
+    {
+      "calls": 25,
+      "candidate_id": "git_history",
+      "delayed_seq_calls": 0,
+      "distinct_sessions": 3,
+      "edge_cases": "Merge topology, rename detection, binary files, and custom formats",
+      "fallback": "Preserve full output unless a proven lossless formatter is selected",
+      "implementation_complexity": "medium",
+      "information_loss_risks": "Losing commit/stat detail needed for review",
+      "matched_output_count": 25,
+      "observed_output": {
+        "captured_lines": 403,
+        "captured_model_visible_bytes": 33604,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 5601,
+          "point": 8401,
+          "upper": 11202
+        },
+        "matched_output_count": 25,
+        "max_bytes": 12746,
+        "median_bytes": 266,
+        "p90_bytes": 3727,
+        "p95_bytes": 6536,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "success": 25
+        },
+        "structural_feature_counts": {
+          "assertion_location": 1,
+          "timestamps": 1
+        }
+      },
+      "observed_output_bytes": 33604,
+      "safety_class": "high_diagnostic_risk",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "removed_observed_bytes": 0,
+        "status": "no_reduction_observed_or_failure_passthrough",
+        "transformable_output_count": 0,
+        "transformations": {}
+      },
+      "title": "git log / show --stat"
+    },
+    {
+      "calls": 43,
+      "candidate_id": "git_status",
+      "delayed_seq_calls": 8,
+      "distinct_sessions": 4,
+      "edge_cases": "Branch/upstream advice, renames, conflicts, and porcelain formats",
+      "fallback": "Only strip control codes; otherwise preserve output",
+      "implementation_complexity": "low",
+      "information_loss_risks": "Losing staged/unstaged distinctions",
+      "matched_output_count": 35,
+      "observed_output": {
+        "captured_lines": 323,
+        "captured_model_visible_bytes": 7986,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 1331,
+          "point": 1997,
+          "upper": 2662
+        },
+        "matched_output_count": 35,
+        "max_bytes": 1124,
+        "median_bytes": 134,
+        "p90_bytes": 460,
+        "p95_bytes": 782,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "success": 33,
+          "unknown": 2
+        },
+        "structural_feature_counts": {}
+      },
+      "observed_output_bytes": 7986,
+      "safety_class": "high_diagnostic_risk",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "removed_observed_bytes": 0,
+        "status": "no_reduction_observed_or_failure_passthrough",
+        "transformable_output_count": 0,
+        "transformations": {}
+      },
+      "title": "git status"
+    },
+    {
+      "calls": 7,
+      "candidate_id": "package_manager",
+      "delayed_seq_calls": 0,
+      "distinct_sessions": 1,
+      "edge_cases": "Dependency conflicts, audit output, lifecycle scripts, and progress",
+      "fallback": "Preserve warnings/errors and prefer native quiet flags",
+      "implementation_complexity": "high",
+      "information_loss_risks": "Hiding a security or dependency-resolution warning",
+      "matched_output_count": 7,
+      "observed_output": {
+        "captured_lines": 63,
+        "captured_model_visible_bytes": 1241,
+        "estimated_observation_tokens": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 207,
+          "point": 311,
+          "upper": 414
+        },
+        "matched_output_count": 7,
+        "max_bytes": 179,
+        "median_bytes": 176,
+        "p90_bytes": 179,
+        "p95_bytes": 179,
+        "provider_measured_uncached_input_tokens": null,
+        "separate_stream_bytes": 0,
+        "separate_stream_observations": 0,
+        "status_counts": {
+          "success": 7
+        },
+        "structural_feature_counts": {}
+      },
+      "observed_output_bytes": 1241,
+      "safety_class": "high_diagnostic_risk",
+      "simulation": {
+        "estimated_observation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "fresh_input_confidence": "unverified_cache_status",
+        "per_transformable_invocation_token_reduction": {
+          "confidence": "heuristic_bytes_per_token",
+          "lower": 0,
+          "point": 0,
+          "upper": 0
+        },
+        "removed_observed_bytes": 0,
+        "status": "no_reduction_observed_or_failure_passthrough",
+        "transformable_output_count": 0,
+        "transformations": {}
+      },
+      "title": "Package manager output"
+    }
+  ],
+  "title": "Codex command frequency and tool-output report"
+}
