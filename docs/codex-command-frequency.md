@@ -23,21 +23,46 @@ python3 scripts/analyze_codex_commands.py \
   --output-dir "$HOME/codex-command-report"
 ```
 
+For exhaustive local-history research, omit the date flags and add `--full-history`:
+
+```sh
+python3 scripts/analyze_codex_commands.py \
+  --codex-home "$HOME/.codex" \
+  --full-history \
+  --output-dir "$HOME/codex-full-history-report"
+```
+
 Useful bounds and overrides:
 
 ```text
 --sessions-dir PATH       override the default CODEX_HOME/sessions root
 --include-archived        add CODEX_HOME/archived_sessions
+--full-history            current + archived; no default dates; strict coverage exit
 --max-files N             default 1,000
 --max-file-bytes N        default 32 MiB per file
 --max-total-bytes N       default 512 MiB total
 --max-line-bytes N        default 8 MiB per JSONL record
+--significance-min-bytes N     default 102,400
+--significance-min-fraction F  default 0.20; must be between 0 and 1
 --fingerprint-salt VALUE  optional; adds truncated HMAC fingerprints to JSON
 ```
 
-The date window is inclusive. Only regular `rollout-*.jsonl` files are read. Directory and file symlinks are skipped, and no file is modified.
+`--full-history` uses larger defaults while remaining bounded: 100,000 files, 64 MiB per file, 8 GiB total, and 16 MiB per JSONL record. Any explicit budget overrides its mode default.
 
-The command prints only aggregate counts and the six output paths. Reports are created with `0700` directory and `0600` file permissions:
+The date window is inclusive. `--full-history` selects `sessions/` and `archived_sessions/` and applies no dates unless explicitly supplied. All eligible files are inventoried before scanning, with deterministic traversal and start/end metadata checks. Only regular `rollout-*.jsonl` files are read. Directory and file symlinks are skipped, root escapes are rejected, and no file is modified.
+
+Coverage has four explicit outcomes:
+
+- `complete`: full-history mode found no cap, unreadable input, skipped symlink, malformed/oversized record, partial trailing record, or mutation;
+- `partial`: full-history mode found a condition that prevents an exhaustive claim;
+- `unmeasured`: no rollout files were available, so no frequency or savings finding is asserted;
+- `sampled` or `bounded_or_filtered`: the run used dates, omitted archived history, or relied on a non-full-history bound.
+
+Reports are still written for partial or unmeasured full-history runs, but the process exits with status `3`. A cap never silently converts a bounded sample into an exhaustive result.
+
+The headline's found/scanned/omitted file counts are not disjoint: a file can be opened and still carry an omission because a per-file cap, concurrent mutation, or record-integrity failure prevented completion. The manifest records per-file omission reasons.
+
+The command prints only aggregate coverage and output paths. Reports are created with `0700` directory and `0600` file permissions:
 
 ```text
 command_frequency_report.md
@@ -46,9 +71,15 @@ opaque_command_diagnostics.md
 opaque_command_diagnostics.json
 command_sequence_report.md
 command_sequence_report.json
+compilation_output_research.md
+compilation_output_research.json
+codex_history_census_manifest.json
+codex_history_census_summary.md
 ```
 
 The normal report contains additive `opaque_attribution` and `sequence_analysis` sections. The diagnostics files contain the full reason/feature cross-tabs. The sequence files contain the standalone sequence schema and rankings. Prefer an output directory outside the repository. Local reports must not be committed or published without explicit review and approval.
+
+The census manifest contains truncated hashes for file and session identifiers, file sizes, record-integrity counts, duplicate reconciliation, coverage reasons, and effective budgets. It never serializes absolute paths, relative rollout paths, raw session IDs, commands, outputs, prompts, or diagnostics. Exact duplicate rollout content and hard-linked physical files are omitted after deterministic duplicate reconciliation; legitimate separate source files with a reused session ID remain separate histories.
 
 ## Observed local envelope forms
 
@@ -57,10 +88,13 @@ The implementation was checked against bounded local schema metadata rather than
 - `response_item.payload.type = function_call`, with JSON `arguments`, for tools such as `exec_command`;
 - `response_item.payload.type = custom_tool_call`, where `name = exec` contains structured `tools.exec_command(...)` calls;
 - matching `function_call_output` or `custom_tool_call_output` records keyed by `call_id`;
+- command-tool text envelopes with `Chunk ID`, `Wall time`, a strict `Process exited with code N` status line, and `Output:` / `Final output:` content;
 - `event_msg/item_completed` telemetry and token records, which are not counted as duplicate invocations;
 - plain `delayed-seq -- ...`, the routing-proxy marker form, and native `delayed_seq` command lists.
 
 The parser is intentionally conservative. If a future schema or JavaScript object is not understood, it is left out of command-family attribution rather than guessed from text. Invalid JSON, invalid UTF-8, oversized records, partial trailing records, conflicts, and unmatched results are counted as coverage limitations.
+
+Envelope exit status is accepted only when the complete standard prefix occurs once and no second status line makes attribution ambiguous. Output summaries retain the full model-visible envelope byte count while also recording content bytes for envelope-based results.
 
 Observed sequence-boundary structures include:
 
@@ -93,6 +127,22 @@ Schema version 2 keeps invocation and requested-command denominators separate fr
 A partial segment is syntax evidence only. It does not prove that the executable started, succeeded, or produced any part of the combined output. `coverage.opaque_subcommands` remains the count without high-confidence executable attribution for comparability, while new fields split that count into `partial_syntactic_subcommands` and `strict_opaque_subcommands`.
 
 Normalized shapes contain only allowlisted executable/family labels, recognized option names, and placeholders such as `<pattern>` or `<paths>`; values, patterns, paths, environment values, and raw commands are not serialized.
+
+## Validation command taxonomy
+
+The compilation-output research applies a versioned taxonomy independent of the broader shell-family labels:
+
+```text
+compile/build
+type/check
+lint
+test
+format
+package-script-unknown
+unknown
+```
+
+It classifies observed Rust, Go, Node/TypeScript, Python, C/C++, JVM, .NET, and Forge forms, retaining ecosystem, normalized shape, and packaging (`direct`, `shell_batch`, `native_batch`, `proxy_batch`, or `mixed_unknown`). Plain `node`, arbitrary package-manager scripts without a recognized script name, arbitrary `forge` subcommands, and unknown wrappers are not upgraded into tests or builds. Syntax-only segments inside compound shells are counted separately from confirmed executions.
 
 ## Ordered sequence analysis
 
@@ -223,6 +273,18 @@ upper = UTF-8 bytes / 3
 ```
 
 These are explicitly not tokenizer counts. The eventual runtime wrapper still requires a controlled A/B benchmark that measures task success, extra model calls, retries, and lost-diagnostic recovery.
+
+## Certainty and compression research
+
+The output research distinguishes `success_verified`, `success_text_inferred`, `failed_verified`, `failure_text_inferred`, `timeout`, `cancelled`, and `unknown`. A structured zero/nonzero exit status is authoritative. An unambiguous terminal exit-code line is also accepted. Words such as `passed` or `compiled successfully` are retained as text-inferred evidence only and can never justify `Success!\n`.
+
+Three in-memory simulations are compared with no compression:
+
+- **aggressive success** emits exactly `Success!\n` only for a reviewed formatter, an authoritative zero exit, complete output, more than zero output bytes, and no warnings, errors, skipped/ignored/xfailed tests, deprecation, no-test result, binary data, stderr, truncation, interactive prompt, uncertainty, or unrecognized success-output shape;
+- **conservative success** retains command identity and available test counts under the same strict verified-success gate;
+- **terse failure** has bounded Rust, Go, Node/TypeScript, and Python parsers. It preserves unique primary diagnostics and falls back to the original on text-only or unknown status, parser uncertainty, panic/stack trace, linker/runtime failure, binary output, truncation, timeout, or cancellation.
+
+Reports include attempted/transformed/skipped output counts, original/transformed/saved bytes, p50/p90/p95 per-output savings, affected share of all matched output bytes, and configured significance gates. Default gates require at least 20% savings within an ecosystem/operation and at least 100 KiB saved across that grouping. Overlapping candidate opportunities are not summed into a single claimed total. Byte accounting covers captured payload text; provider prompt/tool-schema wrapper overhead is not reconstructed. Token reductions remain heuristic and no cache, billing, task-success, or historical-replay claim is made.
 
 ## Synthetic illustrative example
 

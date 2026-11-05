@@ -33,6 +33,14 @@ from codex_sequence_analysis import (
     TimelineEvent,
     build_sequence_analysis,
 )
+from codex_compilation_analysis import (
+    OPERATIONS,
+    SUCCESS_OUTPUT,
+    TAXONOMY_VERSION,
+    ValidationCommand,
+    classify_validation_command,
+    format_terse_failure,
+)
 
 
 SCHEMA_VERSION = 3
@@ -40,9 +48,17 @@ DEFAULT_MAX_FILES = 1_000
 DEFAULT_MAX_FILE_BYTES = 32 * 1024 * 1024
 DEFAULT_MAX_TOTAL_BYTES = 512 * 1024 * 1024
 DEFAULT_MAX_LINE_BYTES = 8 * 1024 * 1024
+FULL_HISTORY_MAX_FILES = 100_000
+FULL_HISTORY_MAX_FILE_BYTES = 64 * 1024 * 1024
+FULL_HISTORY_MAX_TOTAL_BYTES = 8 * 1024 * 1024 * 1024
+FULL_HISTORY_MAX_LINE_BYTES = 16 * 1024 * 1024
+DEFAULT_SIGNIFICANCE_MIN_BYTES = 100 * 1024
+DEFAULT_SIGNIFICANCE_MIN_FRACTION = 0.20
 TOKEN_POINT_DIVISOR = 4
 TOKEN_LOWER_DIVISOR = 6
 TOKEN_UPPER_DIVISOR = 3
+SUCCESS_RESEARCH_CANDIDATES = ("aggressive_success", "conservative_success")
+RESEARCH_CANDIDATES = (*SUCCESS_RESEARCH_CANDIDATES, "terse_failure")
 
 SHELL_TOOL_NAMES = {
     "exec_command",
@@ -54,8 +70,15 @@ NATIVE_BATCH_TOOL_NAMES = {"delayed_seq", "delayed_seq_command"}
 PROXY_MARKER = "CODEX_ROUTING_PROXY_VIRTUAL_BATCH=1"
 ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 ANSI_RE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
-EXIT_CODE_RE = re.compile(r"(?:process\s+)?exited\s+with\s+code\s+(-?\d+)", re.I)
-EXIT_CODE_FIELD_RE = re.compile(r'"exit_code"\s*:\s*(-?\d+)')
+COMMAND_ENVELOPE_RE = re.compile(
+    r"\AChunk ID:[^\r\n]*\r?\n"
+    r"Wall time:[^\r\n]*\r?\n"
+    r"Process exited with code (-?\d+)\r?\n"
+    r"Original token count: \d+\r?\n"
+    r"(?:Final output|Output):\r?\n"
+)
+COMMAND_ENVELOPE_HEADER_RE = re.compile(r"(?m)^Chunk ID:")
+COMMAND_STATUS_LINE_RE = re.compile(r"(?m)^Process exited with code -?\d+\r?$")
 SUCCESS_MARKERS = (
     "all tests passed",
     "test result: ok",
@@ -92,10 +115,13 @@ class AnalysisOptions:
     since: dt.date | None = None
     until: dt.date | None = None
     include_archived: bool = False
+    full_history: bool = False
     max_files: int = DEFAULT_MAX_FILES
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
     max_total_bytes: int = DEFAULT_MAX_TOTAL_BYTES
     max_line_bytes: int = DEFAULT_MAX_LINE_BYTES
+    significance_min_bytes: int = DEFAULT_SIGNIFICANCE_MIN_BYTES
+    significance_min_fraction: float = DEFAULT_SIGNIFICANCE_MIN_FRACTION
     fingerprint_salt: str | None = None
 
 
@@ -108,6 +134,10 @@ class OutputMetrics:
     features: dict[str, bool]
     stdout_bytes: int | None = None
     stderr_bytes: int | None = None
+    certainty: str = "unknown"
+    exit_code: int | None = None
+    complete: bool = True
+    output_kind: str = "text"
 
     def as_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -120,6 +150,7 @@ class OutputObservation:
     simulations: dict[str, OutputMetrics]
     wrapper_succeeded: int = 0
     wrapper_failed: int = 0
+    text: str = field(default="", repr=False)
 
 
 @dataclass
@@ -163,8 +194,21 @@ class ShellInvocation:
 class SourceStats:
     discovered_files: int = 0
     processed_files: int = 0
+    eligible_files: int = 0
+    inventory_files: int = 0
+    inventory_bytes: int = 0
     skipped_symlinks: int = 0
     unreadable_files: int = 0
+    changed_files: int = 0
+    duplicate_rollout_files: int = 0
+    duplicate_physical_files: int = 0
+    date_excluded_files: int = 0
+    archived_excluded_files: int = 0
+    ignored_non_rollout_files: int = 0
+    omitted_files: int = 0
+    missing_roots: int = 0
+    current_inventory_files: int = 0
+    archived_inventory_files: int = 0
     records: int = 0
     invalid_utf8: int = 0
     invalid_json: int = 0
@@ -174,6 +218,36 @@ class SourceStats:
     byte_limit_reached: bool = False
     truncated_files: int = 0
     source_categories: collections.Counter[str] = field(default_factory=collections.Counter)
+    omitted_by_reason: collections.Counter[str] = field(default_factory=collections.Counter)
+    inventory_entries: list["InventoryFile"] = field(default_factory=list)
+    missing_root_categories: list[str] = field(default_factory=list)
+
+
+@dataclass
+class InventoryFile:
+    path: Path
+    category: str
+    relative_path: str
+    file_id: str
+    size: int
+    mtime_ns: int
+    device: int
+    inode: int
+    path_date: dt.date | None
+    selected: bool = True
+    processed: bool = False
+    duplicate_of: str | None = None
+    start_metadata: tuple[int, int, int, int] | None = None
+    end_metadata: tuple[int, int, int, int] | None = None
+    consumed_bytes: int = 0
+    records: int = 0
+    invalid_utf8: int = 0
+    invalid_json: int = 0
+    oversized_lines: int = 0
+    partial_trailing_records: int = 0
+    session_ids: set[str] = field(default_factory=set)
+    omitted: bool = False
+    omission_reasons: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -198,6 +272,8 @@ class ScanState:
     custom_bundle_count: int = 0
     serial: int = 0
     sessions_seen: set[str] = field(default_factory=set)
+    source_sessions: set[tuple[str, str]] = field(default_factory=set)
+    file_sessions: set[tuple[str, str]] = field(default_factory=set)
     missing_timestamps: int = 0
     timeline_events: list[TimelineEvent] = field(default_factory=list)
     timeline_sequence: int = 0
@@ -837,6 +913,7 @@ def _add_invocation(
     state.calls_by_result_key[key[:-1] + (result_key,)].append(invocation)
     state.calls.append(invocation)
     state.sessions_seen.add(session_id)
+    state.source_sessions.add((source_key, session_id))
     return invocation
 
 
@@ -976,19 +1053,94 @@ def _process_call_payload(
 
 
 def _detect_status(text: str) -> str:
+    certainty = _status_certainty(text, _authoritative_exit_code(text), True)
+    if certainty.startswith("success"):
+        return "success"
+    if certainty.startswith("failure") or certainty == "timeout":
+        return "failed"
+    return "unknown"
+
+
+def _authoritative_exit_code(text: str) -> int | None:
+    envelope = _command_envelope(text)
+    if envelope is not None:
+        return int(envelope.group(1))
+    value = text.rstrip()
+    matches = list(
+        re.finditer(
+            r"(?:^|\n)(?:Process\s+)?exited\s+with\s+code\s+(-?\d+)\s*$",
+            value,
+            re.I,
+        )
+    )
+    if len(matches) == 1:
+        return int(matches[0].group(1))
+    return None
+
+
+def _command_envelope(text: str) -> re.Match[str] | None:
+    envelope = COMMAND_ENVELOPE_RE.match(text)
+    if (
+        envelope is None
+        or len(COMMAND_ENVELOPE_HEADER_RE.findall(text)) != 1
+        or len(COMMAND_STATUS_LINE_RE.findall(text)) != 1
+    ):
+        return None
+    return envelope
+
+
+def _command_envelope_content(text: str) -> str:
+    envelope = _command_envelope(text)
+    if envelope is None:
+        return text
+    return text[envelope.end() :]
+
+
+def _status_certainty(
+    text: str,
+    exit_code: int | None,
+    complete: bool,
+) -> str:
     lower = text.lower()
-    for pattern in (EXIT_CODE_RE, EXIT_CODE_FIELD_RE):
-        match = pattern.search(text)
-        if match:
-            return "success" if int(match.group(1)) == 0 else "failed"
-    if "[delayed-seq] completed:" in lower or "[delayed-seq] completed" in lower:
-        return "success"
-    if "failed with status" in lower or "timed out" in lower or "panicked at" in lower:
-        return "failed"
+    if (
+        any(
+            marker in lower
+            for marker in (
+                "cancelled before completion",
+                "canceled before completion",
+                "command cancelled",
+                "operation cancelled",
+            )
+        )
+        or re.search(
+            r'"(?:status|state)"\s*:\s*"(?:cancelled|canceled)"',
+            lower,
+        )
+        or re.search(r'"(?:cancelled|canceled)"\s*:\s*true', lower)
+    ):
+        return "cancelled"
+    if (
+        any(
+            marker in lower
+            for marker in ("timed out", "timeout exceeded", "deadline exceeded")
+        )
+        or re.search(
+            r'"(?:status|state)"\s*:\s*"(?:timed_out|timeout|timedout)"',
+            lower,
+        )
+        or re.search(r'"(?:timed_out|timeout)"\s*:\s*true', lower)
+    ):
+        return "timeout"
+    if exit_code == 0:
+        return "success_verified"
+    if exit_code is not None:
+        return "failed_verified"
+    if not complete:
+        return "unknown"
     if _has_failure(text):
-        return "failed"
+        return "failure_text_inferred"
     if any(marker in lower for marker in SUCCESS_MARKERS):
-        return "success"
+        return "success_text_inferred"
     return "unknown"
 
 
@@ -1020,8 +1172,37 @@ def _structural_features(text: str) -> dict[str, bool]:
         "repetitive_lines": repeated,
         "success_lines": any(marker in lower for marker in SUCCESS_MARKERS),
         "warnings": "warning:" in lower or "warnings summary" in lower,
+        "errors": "error:" in lower or "error[" in lower or "npm err!" in lower,
+        "diagnostic_notes": bool(re.search(r"(?:^|\n)\s*(?:note|help):", lower)),
         "stack_trace": "traceback (most recent call last)" in lower or "panicked at" in lower,
         "assertion_location": bool(re.search(r"\bassert(?:ion)?\b", text, re.I)),
+        "skipped_tests": bool(re.search(r"\b\d+\s+(?:skipped|ignored)\b", lower)),
+        "xfail": "xfail" in lower or "expected failure" in lower,
+        "deprecated": "deprecated" in lower,
+        "no_tests": bool(
+            re.search(
+                r"(?:"
+                r"\brunning\s+0\s+tests?\b"
+                r"|\bno\s+tests?\s+(?:ran|collected|found|to\s+run)\b"
+                r"|\bno\s+test\s+files?(?:\s+found)?\b"
+                r"|\[no\s+test\s+files?\]"
+                r"|\b0\s+tests?\b"
+                r")",
+                lower,
+            )
+        ),
+        "interactive_prompt": bool(
+            re.search(r"(?:^|\n)\s*(?:yes/no|continue\?|press any key|password:)", lower)
+        ),
+        "uncertainty": any(
+            marker in lower
+            for marker in (
+                "may have failed",
+                "status unknown",
+                "completion unknown",
+                "partial output",
+            )
+        ),
         "git_hunk": "@@" in text,
         "json_like": json_like,
         "timestamps": bool(
@@ -1087,7 +1268,52 @@ def _parse_structured_output(value: Any) -> tuple[str, int | None, int | None]:
         exit_code = value.get("exit_code")
         if isinstance(exit_code, int):
             text += f"Process exited with code {exit_code}\n"
+        text += _structured_terminal_marker(value)
     return text, stdout_bytes, stderr_bytes
+
+
+def _structured_terminal_marker(value: dict[str, Any]) -> str:
+    candidates = [value]
+    metadata = value.get("metadata")
+    if isinstance(metadata, dict):
+        candidates.append(metadata)
+    for candidate in candidates:
+        if candidate.get("cancelled") is True or candidate.get("canceled") is True:
+            return "command cancelled\n"
+        status = candidate.get("status") or candidate.get("state")
+        if isinstance(status, str) and status.lower() in {"cancelled", "canceled"}:
+            return "command cancelled\n"
+    for candidate in candidates:
+        if candidate.get("timed_out") is True or candidate.get("timeout") is True:
+            return "command timed out\n"
+        status = candidate.get("status") or candidate.get("state")
+        if isinstance(status, str) and status.lower() in {
+            "timed_out",
+            "timeout",
+            "timedout",
+        }:
+            return "command timed out\n"
+    return ""
+
+
+def _structured_is_incomplete(value: dict[str, Any]) -> bool:
+    candidates = [value]
+    metadata = value.get("metadata")
+    if isinstance(metadata, dict):
+        candidates.append(metadata)
+    for candidate in candidates:
+        for key in (
+            "truncated",
+            "is_truncated",
+            "output_truncated",
+            "partial",
+            "is_partial",
+        ):
+            if candidate.get(key) is True:
+                return True
+        if candidate.get("complete") is False:
+            return True
+    return False
 
 
 def _model_visible_text(value: Any) -> tuple[str, int | None, int | None]:
@@ -1110,12 +1336,63 @@ def _model_visible_text(value: Any) -> tuple[str, int | None, int | None]:
         for item in value:
             if isinstance(item, str):
                 parts.append(item)
-            elif isinstance(item, dict) and isinstance(item.get("text"), str):
-                parts.append(item["text"])
+            elif isinstance(item, dict):
+                if isinstance(item.get("text"), str):
+                    parts.append(item["text"])
+                marker = _structured_terminal_marker(item)
+                if marker:
+                    parts.append(marker)
         return "".join(parts), None, None
     if isinstance(value, dict):
         return _parse_structured_output(value)
     return str(value), None, None
+
+
+def _model_visible_output(
+    value: Any,
+) -> tuple[str, int | None, int | None, int | None, str, bool]:
+    text, stdout_bytes, stderr_bytes = _model_visible_text(value)
+    exit_code: int | None = None
+    output_kind = "text"
+    complete = True
+    if isinstance(value, dict):
+        output_kind = "structured"
+        candidate = value.get("exit_code")
+        if isinstance(candidate, int) and not isinstance(candidate, bool):
+            exit_code = candidate
+        if _structured_is_incomplete(value):
+            complete = False
+    elif isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            parsed = None
+        if isinstance(parsed, dict):
+            output_kind = "serialized_structured"
+            candidate = parsed.get("exit_code")
+            if isinstance(candidate, int) and not isinstance(candidate, bool):
+                exit_code = candidate
+            terminal_marker = _structured_terminal_marker(parsed)
+            if terminal_marker:
+                text += "\n" + terminal_marker
+            if _structured_is_incomplete(parsed):
+                complete = False
+    elif isinstance(value, list):
+        output_kind = "content_list"
+    else:
+        output_kind = "other"
+    if exit_code is None:
+        exit_code = _authoritative_exit_code(text)
+    features = _structural_features(text)
+    if features["truncated"]:
+        complete = False
+    envelope = _command_envelope(text)
+    if envelope is not None:
+        output_kind = "command_tool_envelope"
+        stdout_bytes = len(text[envelope.end() :].encode("utf-8"))
+        stderr_bytes = None
+        features["command_tool_envelope"] = True
+    return text, stdout_bytes, stderr_bytes, exit_code, output_kind, complete
 
 
 def _metrics_for_text(
@@ -1123,21 +1400,51 @@ def _metrics_for_text(
     *,
     stdout_bytes: int | None = None,
     stderr_bytes: int | None = None,
+    exit_code: int | None = None,
+    complete: bool = True,
+    output_kind: str = "text",
 ) -> OutputMetrics:
+    certainty = _status_certainty(text, exit_code, complete)
+    legacy_status = (
+        "success"
+        if certainty.startswith("success")
+        else "failed"
+        if certainty.startswith("failure") or certainty == "timeout"
+        else "unknown"
+    )
+    features = _structural_features(text)
+    if (stderr_bytes or 0) > 0:
+        features["stderr_present"] = True
+    if (stdout_bytes or 0) > 0 and (stderr_bytes or 0) > 0:
+        features["separate_stdout_and_stderr"] = True
     return OutputMetrics(
         bytes=len(text.encode("utf-8")),
         chars=len(text),
         lines=len(text.splitlines()),
-        status=_detect_status(text),
-        features=_structural_features(text),
+        status=legacy_status,
+        features=features,
         stdout_bytes=stdout_bytes,
         stderr_bytes=stderr_bytes,
+        certainty=certainty,
+        exit_code=exit_code,
+        complete=complete,
+        output_kind=output_kind,
     )
 
 
 def _make_output_observation(value: Any) -> OutputObservation:
-    text, stdout_bytes, stderr_bytes = _model_visible_text(value)
-    metrics = _metrics_for_text(text, stdout_bytes=stdout_bytes, stderr_bytes=stderr_bytes)
+    text, stdout_bytes, stderr_bytes, exit_code, output_kind, complete = (
+        _model_visible_output(value)
+    )
+    analysis_text = _command_envelope_content(text)
+    metrics = _metrics_for_text(
+        text,
+        stdout_bytes=stdout_bytes,
+        stderr_bytes=stderr_bytes,
+        exit_code=exit_code,
+        complete=complete,
+        output_kind=output_kind,
+    )
     simulations: dict[str, OutputMetrics] = {}
     clean = ANSI_RE.sub("", text)
     if clean != text:
@@ -1148,10 +1455,6 @@ def _make_output_observation(value: Any) -> OutputObservation:
     test_text = _simulate_test_success(text)
     if test_text is not None:
         simulations["test_success"] = _metrics_for_text(test_text)
-    if metrics.status == "success" and not metrics.features["warnings"]:
-        clean_success = "command succeeded\n"
-        if len(clean_success) < len(text):
-            simulations["clean_success"] = _metrics_for_text(clean_success)
     succeeded = len(re.findall(r"\[delayed-seq\] command \d+/\d+: succeeded", text))
     failed = len(re.findall(r"\[delayed-seq\] command \d+/\d+: failed", text))
     return OutputObservation(
@@ -1160,6 +1463,7 @@ def _make_output_observation(value: Any) -> OutputObservation:
         simulations=simulations,
         wrapper_succeeded=succeeded,
         wrapper_failed=failed,
+        text=analysis_text,
     )
 
 
@@ -1391,6 +1695,8 @@ def _process_record(
         discovered = payload.get("session_id") or payload.get("id")
         if isinstance(discovered, str) and discovered:
             session_id = discovered
+            state.sessions_seen.add(session_id)
+            state.source_sessions.add((source_key, session_id))
     payload = row.get("payload")
     has_date_filter = state.options.since is not None or state.options.until is not None
     if has_date_filter and _date_from_timestamp(timestamp) is None:
@@ -1410,30 +1716,44 @@ def _process_record(
 
 
 def _iter_rollout_files(root: Path, category: str, state: ScanState):
-    if not root.exists():
-        return
-    if not root.is_dir():
-        raise AnalysisError(f"{category} root is not a directory")
-    for current, directories, files in os.walk(root, followlinks=False):
-        directories.sort()
-        files.sort()
-        for directory in list(directories):
-            if (Path(current) / directory).is_symlink():
-                state.source.skipped_symlinks += 1
-        for name in files:
-            path = Path(current) / name
-            if path.is_symlink():
-                state.source.skipped_symlinks += 1
-                continue
-            if not re.fullmatch(r"rollout-.*\.jsonl", name):
-                continue
-            try:
-                mode = path.stat(follow_symlinks=False).st_mode
-            except OSError:
-                state.source.unreadable_files += 1
-                continue
-            if stat.S_ISREG(mode):
-                yield path, category
+    for entry in _inventory_root(root, category, state, selected=True):
+        if entry.selected:
+            yield entry
+
+
+def _file_id(category: str, relative_path: str) -> str:
+    return hashlib.sha256(
+        f"{category}\0{relative_path}".encode("utf-8")
+    ).hexdigest()[:24]
+
+
+def _file_metadata(path: Path) -> tuple[int, int, int, int]:
+    metadata = path.stat(follow_symlinks=False)
+    return metadata.st_size, metadata.st_mtime_ns, metadata.st_dev, metadata.st_ino
+
+
+def _open_regular_file(path: Path) -> tuple[Any, tuple[int, int, int, int]]:
+    flags = os.O_RDONLY
+    for name in ("O_CLOEXEC", "O_NOFOLLOW", "O_NONBLOCK"):
+        flags |= getattr(os, name, 0)
+    descriptor = os.open(path, flags)
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise OSError("rollout path is not a regular file")
+        snapshot = (
+            metadata.st_size,
+            metadata.st_mtime_ns,
+            metadata.st_dev,
+            metadata.st_ino,
+        )
+        return os.fdopen(descriptor, "rb"), snapshot
+    except Exception:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+        raise
 
 
 def _rollout_path_date(path: Path) -> dt.date | None:
@@ -1464,15 +1784,217 @@ def _path_outside_window(path: Path, options: AnalysisOptions) -> bool:
     return options.until is not None and path_date > options.until
 
 
-def _read_file(
-    path: Path,
+def _inventory_root(
+    root: Path,
     category: str,
+    state: ScanState,
+    *,
+    selected: bool,
+) -> list[InventoryFile]:
+    try:
+        root_metadata = root.lstat()
+    except FileNotFoundError:
+        if selected:
+            state.source.missing_roots += 1
+            state.source.missing_root_categories.append(category)
+            state.source.omitted_by_reason["missing_root"] += 1
+        return []
+    except OSError:
+        if selected:
+            state.source.unreadable_files += 1
+            state.source.omitted_by_reason["unreadable_root"] += 1
+        return []
+    if stat.S_ISLNK(root_metadata.st_mode):
+        if selected:
+            state.source.skipped_symlinks += 1
+            state.source.omitted_by_reason["symlink_root"] += 1
+        return []
+    if not stat.S_ISDIR(root_metadata.st_mode):
+        raise AnalysisError(f"{category} root is not a directory")
+    resolved_root = root.resolve(strict=False)
+    entries: list[InventoryFile] = []
+
+    def onerror(_error: OSError) -> None:
+        if selected:
+            state.source.unreadable_files += 1
+            state.source.omitted_by_reason["unreadable_directory"] += 1
+
+    try:
+        walker = os.walk(root, followlinks=False, onerror=onerror)
+        for current, directories, files in walker:
+            directories.sort()
+            files.sort()
+            for directory in list(directories):
+                path = Path(current) / directory
+                if path.is_symlink():
+                    if selected:
+                        state.source.skipped_symlinks += 1
+                        state.source.omitted_by_reason["symlink_directory"] += 1
+                    directories.remove(directory)
+            for name in files:
+                path = Path(current) / name
+                if path.is_symlink():
+                    if selected:
+                        state.source.skipped_symlinks += 1
+                        state.source.omitted_by_reason["symlink_file"] += 1
+                    continue
+                if not re.fullmatch(r"rollout-.*\.jsonl", name):
+                    state.source.ignored_non_rollout_files += 1
+                    continue
+                try:
+                    resolved = path.resolve(strict=False)
+                    if not resolved.is_relative_to(resolved_root):
+                        state.source.skipped_symlinks += 1
+                        state.source.omitted_by_reason["root_escape"] += 1
+                        continue
+                    metadata = path.stat(follow_symlinks=False)
+                except OSError:
+                    if selected:
+                        state.source.inventory_files += 1
+                        state.source.omitted_files += 1
+                        if category == "sessions":
+                            state.source.current_inventory_files += 1
+                        else:
+                            state.source.archived_inventory_files += 1
+                    if selected:
+                        state.source.unreadable_files += 1
+                        state.source.omitted_by_reason["unreadable_file"] += 1
+                    continue
+                if not stat.S_ISREG(metadata.st_mode):
+                    state.source.ignored_non_rollout_files += 1
+                    continue
+                relative = path.relative_to(root).as_posix()
+                entry = InventoryFile(
+                    path=path,
+                    category=category,
+                    relative_path=relative,
+                    file_id=_file_id(category, relative),
+                    size=metadata.st_size,
+                    mtime_ns=metadata.st_mtime_ns,
+                    device=metadata.st_dev,
+                    inode=metadata.st_ino,
+                    path_date=_rollout_path_date(path),
+                    selected=selected,
+                )
+                entries.append(entry)
+    except OSError:
+        if selected:
+            state.source.unreadable_files += 1
+            state.source.omitted_by_reason["unreadable_directory"] += 1
+    return entries
+
+
+def _inventory_rollouts(options: AnalysisOptions, state: ScanState) -> list[InventoryFile]:
+    sessions_root = options.sessions_dir or options.codex_home / "sessions"
+    roots = [
+        (sessions_root, "sessions", True),
+        (
+            options.codex_home / "archived_sessions",
+            "archived_sessions",
+            options.include_archived or options.full_history,
+        ),
+    ]
+    entries: list[InventoryFile] = []
+    for root, category, selected_root in roots:
+        entries.extend(
+            _inventory_root(root, category, state, selected=selected_root)
+        )
+
+    candidates: list[InventoryFile] = []
+    physical_seen: dict[tuple[int, int], str] = {}
+    for entry in entries:
+        state.source.inventory_files += 1
+        state.source.inventory_bytes += entry.size
+        if entry.category == "sessions":
+            state.source.current_inventory_files += 1
+        else:
+            state.source.archived_inventory_files += 1
+        if not entry.selected:
+            if entry.category == "archived_sessions":
+                state.source.archived_excluded_files += 1
+                state.source.omitted_by_reason["archive_not_requested"] += 1
+            continue
+        if _path_outside_window(entry.path, options):
+            entry.selected = False
+            state.source.date_excluded_files += 1
+            state.source.omitted_by_reason["date_filter"] += 1
+            continue
+        physical_key = (entry.device, entry.inode)
+        previous = physical_seen.get(physical_key)
+        if previous is not None:
+            entry.selected = False
+            entry.duplicate_of = previous
+            state.source.duplicate_physical_files += 1
+            _omit_file(state, entry, "duplicate_physical_file")
+            continue
+        physical_seen[physical_key] = entry.file_id
+        candidates.append(entry)
+
+    by_size: dict[int, list[InventoryFile]] = collections.defaultdict(list)
+    for entry in candidates:
+        by_size[entry.size].append(entry)
+    for same_size in by_size.values():
+        if len(same_size) < 2:
+            continue
+        first_by_digest: dict[str, InventoryFile] = {}
+        for entry in same_size:
+            digest = hashlib.sha256()
+            try:
+                handle, start_metadata = _open_regular_file(entry.path)
+                with handle:
+                    for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                    end_metadata = _file_metadata(entry.path)
+            except OSError:
+                entry.selected = False
+                state.source.unreadable_files += 1
+                _omit_file(state, entry, "unreadable_during_inventory")
+                continue
+            if start_metadata != end_metadata:
+                entry.selected = False
+                state.source.changed_files += 1
+                _omit_file(state, entry, "file_changed_during_inventory")
+                continue
+            previous = first_by_digest.get(digest.hexdigest())
+            if previous is None:
+                first_by_digest[digest.hexdigest()] = entry
+            else:
+                entry.selected = False
+                entry.duplicate_of = previous.file_id
+                state.source.duplicate_rollout_files += 1
+                state.source.omitted_by_reason["exact_duplicate_content"] += 1
+                state.source.omitted_files += 1
+
+    state.source.inventory_entries = entries
+    state.source.eligible_files = sum(entry.selected for entry in entries)
+    state.source.discovered_files = sum(entry.selected for entry in entries)
+    return [entry for entry in entries if entry.selected]
+
+
+def _omit_file(
+    state: ScanState,
+    entry: InventoryFile,
+    reason: str,
+) -> None:
+    if not entry.omitted:
+        state.source.omitted_files += 1
+        entry.omitted = True
+    if reason not in entry.omission_reasons:
+        entry.omission_reasons.append(reason)
+    state.source.omitted_by_reason[reason] += 1
+
+
+def _read_file(
+    entry: InventoryFile,
     state: ScanState,
     remaining_total: int,
 ) -> int:
+    path = entry.path
+    category = entry.category
     budget = min(state.options.max_file_bytes, remaining_total)
     if budget <= 0:
         state.source.byte_limit_reached = True
+        _omit_file(state, entry, "total_byte_cap")
         return 0
     consumed = 0
     session_id = _session_fallback(path)
@@ -1481,10 +2003,14 @@ def _read_file(
     ).hexdigest()
     record_index = -1
     try:
-        handle = path.open("rb")
+        handle, entry.start_metadata = _open_regular_file(path)
     except OSError:
         state.source.unreadable_files += 1
+        _omit_file(state, entry, "unreadable_file")
         return 0
+    entry.processed = True
+    state.source.processed_files += 1
+    state.source.source_categories[category] += 1
     with handle:
         while consumed < budget:
             allowed = min(state.options.max_line_bytes + 1, budget - consumed)
@@ -1493,8 +2019,10 @@ def _read_file(
                 break
             consumed += len(raw)
             record_index += 1
-            if len(raw) > state.options.max_line_bytes:
+            record_bytes = len(raw) - 1 if raw.endswith(b"\n") else len(raw)
+            if record_bytes > state.options.max_line_bytes:
                 state.source.oversized_lines += 1
+                entry.oversized_lines += 1
                 while not raw.endswith(b"\n") and consumed < budget:
                     extra = handle.readline(min(64 * 1024, budget - consumed))
                     if not extra:
@@ -1511,12 +2039,14 @@ def _read_file(
                 )
                 continue
             partial = not raw.endswith(b"\n")
+            if partial:
+                state.source.partial_trailing_records += 1
+                entry.partial_trailing_records += 1
             try:
                 line = raw.decode("utf-8")
             except UnicodeDecodeError:
                 state.source.invalid_utf8 += 1
-                if partial:
-                    state.source.partial_trailing_records += 1
+                entry.invalid_utf8 += 1
                 _add_timeline_event(
                     state,
                     source_key=source_key,
@@ -1530,8 +2060,7 @@ def _read_file(
                 row = json.loads(line)
             except (json.JSONDecodeError, ValueError):
                 state.source.invalid_json += 1
-                if partial:
-                    state.source.partial_trailing_records += 1
+                entry.invalid_json += 1
                 _add_timeline_event(
                     state,
                     source_key=source_key,
@@ -1543,6 +2072,7 @@ def _read_file(
                 continue
             if not isinstance(row, dict):
                 state.source.invalid_json += 1
+                entry.invalid_json += 1
                 _add_timeline_event(
                     state,
                     source_key=source_key,
@@ -1553,6 +2083,7 @@ def _read_file(
                 )
                 continue
             state.source.records += 1
+            entry.records += 1
             timestamp = row.get("timestamp")
             timestamp_text = timestamp if isinstance(timestamp, str) else ""
             session_id = _process_record(
@@ -1563,6 +2094,7 @@ def _read_file(
                 source_key=source_key,
                 record_index=record_index,
             )
+            entry.session_ids.add(session_id)
         if consumed >= budget:
             try:
                 has_more = bool(handle.peek(1))
@@ -1574,10 +2106,23 @@ def _read_file(
                 total_limited = remaining_total <= state.options.max_file_bytes
                 if total_limited:
                     state.source.byte_limit_reached = True
+                    _omit_file(state, entry, "total_byte_cap")
                 else:
                     state.source.truncated_files += 1
-    state.source.processed_files += 1
-    state.source.source_categories[category] += 1
+                    _omit_file(state, entry, "per_file_byte_cap")
+        elif budget < entry.size:
+            state.source.truncated_files += 1
+            _omit_file(state, entry, "per_file_byte_cap")
+    entry.consumed_bytes = consumed
+    try:
+        entry.end_metadata = _file_metadata(path)
+    except OSError:
+        state.source.changed_files += 1
+        _omit_file(state, entry, "metadata_changed_during_scan")
+    else:
+        if entry.start_metadata != entry.end_metadata:
+            state.source.changed_files += 1
+            _omit_file(state, entry, "file_changed_during_scan")
     return consumed
 
 
@@ -1587,37 +2132,27 @@ def scan_rollouts(options: AnalysisOptions) -> ScanState:
     if options.max_line_bytes <= 0:
         raise AnalysisError("max line bytes must be positive")
     state = ScanState(options=options)
-    roots: list[tuple[Path, str]] = []
-    sessions_root = options.sessions_dir or options.codex_home / "sessions"
-    roots.append((sessions_root, "sessions"))
-    if options.include_archived:
-        roots.append((options.codex_home / "archived_sessions", "archived_sessions"))
-
-    seen_paths: set[Path] = set()
+    entries = _inventory_rollouts(options, state)
     consumed_total = 0
-    for root, category in roots:
-        for path, file_category in _iter_rollout_files(root, category, state):
-            if _path_outside_window(path, options):
-                continue
-            resolved = path.resolve(strict=False)
-            if resolved in seen_paths:
-                continue
-            seen_paths.add(resolved)
-            state.source.discovered_files += 1
-            if state.source.processed_files >= options.max_files:
-                state.source.file_limit_reached = True
-                break
-            consumed = _read_file(
-                path,
-                file_category,
-                state,
-                options.max_total_bytes - consumed_total,
-            )
-            consumed_total += consumed
-            if state.source.byte_limit_reached:
-                break
-        if state.source.file_limit_reached or state.source.byte_limit_reached:
+    for index, entry in enumerate(entries):
+        if state.source.processed_files >= options.max_files:
+            state.source.file_limit_reached = True
+            for omitted in entries[index:]:
+                if omitted.selected and not omitted.processed:
+                    _omit_file(state, omitted, "file_count_cap")
             break
+        if consumed_total >= options.max_total_bytes:
+            state.source.byte_limit_reached = True
+            for omitted in entries[index:]:
+                if omitted.selected and not omitted.processed:
+                    _omit_file(state, omitted, "total_byte_cap")
+            break
+        consumed = _read_file(
+            entry,
+            state,
+            options.max_total_bytes - consumed_total,
+        )
+        consumed_total += consumed
     return state
 
 
@@ -1643,6 +2178,7 @@ def _token_range(byte_count: int) -> dict[str, Any]:
 def _summary_metrics(items: Sequence[OutputMetrics]) -> dict[str, Any]:
     sizes = [item.bytes for item in items]
     statuses = collections.Counter(item.status for item in items)
+    output_kinds = collections.Counter(item.output_kind for item in items)
     feature_counts: collections.Counter[str] = collections.Counter()
     for item in items:
         feature_counts.update(name for name, present in item.features.items() if present)
@@ -1651,6 +2187,16 @@ def _summary_metrics(items: Sequence[OutputMetrics]) -> dict[str, Any]:
         for item in items
         if item.stdout_bytes is not None or item.stderr_bytes is not None
     ]
+    envelope_bytes = sum(
+        max(
+            0,
+            item.bytes
+            - (item.stdout_bytes or 0)
+            - (item.stderr_bytes or 0),
+        )
+        for item in items
+        if item.output_kind == "command_tool_envelope"
+    )
     return {
         "matched_output_count": len(items),
         "captured_model_visible_bytes": sum(sizes),
@@ -1661,9 +2207,16 @@ def _summary_metrics(items: Sequence[OutputMetrics]) -> dict[str, Any]:
         "max_bytes": max(sizes, default=0),
         "estimated_observation_tokens": _token_range(sum(sizes)),
         "status_counts": dict(sorted(statuses.items())),
+        "output_kind_counts": dict(sorted(output_kinds.items())),
+        "status_certainty_counts": dict(
+            sorted(
+                collections.Counter(item.certainty for item in items).items()
+            )
+        ),
         "structural_feature_counts": dict(sorted(feature_counts.items())),
         "separate_stream_observations": len(streams),
         "separate_stream_bytes": sum(streams),
+        "command_tool_envelope_bytes": envelope_bytes,
         "provider_measured_uncached_input_tokens": None,
     }
 
@@ -1777,6 +2330,556 @@ def _candidate_id(family: str, shape: str) -> str | None:
     if family in {"cat", "head", "tail", "sed", "find", "ls", "tree", "wc", "du"}:
         return "filesystem_read"
     return None
+
+
+def _success_rejection_reason(
+    command: ValidationCommand,
+    metrics: OutputMetrics,
+    text: str,
+) -> str | None:
+    if not command.formatter_eligible:
+        return "no_reviewed_success_formatter"
+    if metrics.certainty != "success_verified":
+        return "not_authoritatively_verified"
+    if not metrics.complete:
+        return "incomplete_or_truncated"
+    if _has_failure(text):
+        return "failure_marker"
+    blocked = (
+        "binary_control",
+        "warnings",
+        "errors",
+        "skipped_tests",
+        "xfail",
+        "deprecated",
+        "interactive_prompt",
+        "uncertainty",
+        "no_tests",
+        "stack_trace",
+        "diagnostic_notes",
+        "truncated",
+        "stderr_present",
+    )
+    for feature in blocked:
+        if metrics.features.get(feature):
+            return feature
+    if (
+        metrics.bytes <= len(SUCCESS_OUTPUT.encode("utf-8"))
+        or (
+            metrics.stdout_bytes == 0
+            and metrics.stderr_bytes in {None, 0}
+        )
+    ):
+        return "zero_or_too_small"
+    if not _success_output_shape_supported(command, metrics, text=text):
+        return "unrecognized_success_stdout"
+    return None
+
+
+def _success_output_shape_supported(
+    command: ValidationCommand,
+    metrics: OutputMetrics,
+    *,
+    text: str | None,
+) -> bool:
+    if text is None:
+        return True
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return True
+    if command.operation == "test" and not re.search(
+        r"(?:\b\d+\s+passed\b|test result:\s*ok\b|\bPASS\b|"
+        r"^ok\s+\S+|Tests:\s+.*\bpassed\b)",
+        text,
+        re.M | re.I,
+    ):
+        return False
+    allowed = re.compile(
+        r"^(?:"
+        r"Compiling|Checking|Finished|Fresh|Blocking|Locking|"
+        r"Downloading|Downloaded|Updating|Adding|Removing|"
+        r"test result:|running \d+ tests?|Doc-tests|Running |"
+        r"test .+ \.\.\. ok$|"
+        r"ok\s+\S+|-- PASS:|\?.*\[no test files\]|PASS$|"
+        r"collected \d+ item|"
+        r"[.sxFE]+\s+(?:\[\s*\d+%\])?|"
+        r"=+\s+.*\s+=+$|"
+        r"\d+\s+(?:passed|failed|skipped|ignored|xfailed|xpassed)\b"
+        r")",
+        re.I,
+    )
+    return all(
+        allowed.search(line)
+        or re.fullmatch(r"[.sxFE]+", line) is not None
+        for line in lines
+    )
+
+
+def _compact_success_output(
+    text: str,
+    command: ValidationCommand,
+) -> str:
+    if command.operation != "test":
+        return f"{command.family}: success\n"
+    kept = [
+        line.strip()
+        for line in text.splitlines()
+        if re.search(
+            r"\b\d+\s+(?:passed|failed|skipped|ignored|xfailed|xpassed)\b",
+            line,
+            re.I,
+        )
+    ]
+    if kept:
+        return f"{command.family}: " + " | ".join(dict.fromkeys(kept[:4])) + "\n"
+    return f"{command.family}: success\n"
+
+
+def _research_simulations(
+    command: ValidationCommand,
+    metrics: OutputMetrics,
+    text: str,
+) -> tuple[dict[str, OutputMetrics], dict[str, str]]:
+    simulations: dict[str, OutputMetrics] = {}
+    rejection: dict[str, str] = {}
+    if metrics.certainty.startswith("success"):
+        reason = _success_rejection_reason(command, metrics, text)
+        if reason is None:
+            simulations["aggressive_success"] = _metrics_for_text(
+                SUCCESS_OUTPUT,
+                exit_code=0,
+                complete=True,
+                output_kind="simulation",
+            )
+            compact = _compact_success_output(text, command)
+            if 0 < len(compact.encode("utf-8")) < metrics.bytes:
+                simulations["conservative_success"] = _metrics_for_text(
+                    compact,
+                    exit_code=0,
+                    complete=True,
+                    output_kind="simulation",
+                )
+            else:
+                rejection["conservative_success"] = "no_byte_savings"
+        else:
+            rejection["aggressive_success"] = reason
+            rejection["conservative_success"] = reason
+    if metrics.certainty in {"failed_verified", "failure_text_inferred"}:
+        if metrics.certainty != "failed_verified":
+            rejection["terse_failure"] = "not_authoritatively_verified"
+        else:
+            terse = format_terse_failure(
+                text,
+                ecosystem=command.ecosystem,
+                certainty=metrics.certainty,
+                complete=metrics.complete,
+                features=metrics.features,
+            )
+            if terse is not None:
+                simulations["terse_failure"] = _metrics_for_text(
+                    terse,
+                    exit_code=metrics.exit_code,
+                    complete=True,
+                    output_kind="simulation",
+                )
+            elif not resources_failure_passthrough(metrics):
+                rejection["terse_failure"] = "no_safe_parser_match"
+            elif not metrics.complete:
+                rejection["terse_failure"] = "incomplete_or_truncated"
+            elif metrics.features.get("binary_control"):
+                rejection["terse_failure"] = "binary_control"
+            elif metrics.features.get("stack_trace"):
+                rejection["terse_failure"] = "panic_or_stack_trace"
+            elif metrics.features.get("separate_stdout_and_stderr"):
+                rejection["terse_failure"] = "separate_stream_interleaving_unknown"
+            else:
+                rejection["terse_failure"] = "no_safe_parser_match"
+    if metrics.certainty in {"timeout", "cancelled", "unknown"}:
+        rejection["terse_failure"] = f"unsafe_status:{metrics.certainty}"
+    return simulations, rejection
+
+
+def resources_failure_passthrough(metrics: OutputMetrics) -> bool:
+    return (
+        not metrics.complete
+        or metrics.features.get("binary_control", False)
+        or metrics.features.get("stack_trace", False)
+        or metrics.certainty in {"timeout", "cancelled", "unknown"}
+    )
+
+
+def _research_attempted_candidates(certainty: str) -> tuple[str, ...]:
+    if certainty.startswith("success"):
+        return SUCCESS_RESEARCH_CANDIDATES
+    if certainty.startswith("fail") or certainty in {
+        "timeout",
+        "cancelled",
+        "unknown",
+    }:
+        return ("terse_failure",)
+    return ()
+
+
+def _research_row_dict(bucket: "ResearchBucket") -> dict[str, Any]:
+    outputs = bucket.outputs
+    simulations = {}
+    candidate_names = sorted(
+        set(bucket.simulation_counts)
+        | set(bucket.simulation_attempted_counts)
+        | set(bucket.candidate_rejections)
+    )
+    for name in candidate_names:
+        transformed = bucket.simulation_counts.get(name, 0)
+        skipped = sum(bucket.candidate_rejections.get(name, {}).values())
+        simulations[name] = {
+            "attempted_outputs": bucket.simulation_attempted_counts.get(
+                name, transformed + skipped
+            ),
+            "transformed_outputs": transformed,
+            "skipped_outputs": skipped,
+            "original_bytes": bucket.simulation_attempted_bytes.get(
+                name, bucket.simulation_original_bytes[name]
+            ),
+            "transformed_original_bytes": bucket.simulation_original_bytes[name],
+            "transformed_bytes": bucket.simulation_transformed_bytes[name],
+            "saved_bytes": max(
+                0,
+                bucket.simulation_original_bytes[name]
+                - bucket.simulation_transformed_bytes[name],
+            ),
+            "saved_bytes_p50": _percentile(
+                bucket.simulation_savings.get(name, []),
+                0.5,
+            ),
+            "saved_bytes_p90": _percentile(
+                bucket.simulation_savings.get(name, []),
+                0.9,
+            ),
+            "saved_bytes_p95": _percentile(
+                bucket.simulation_savings.get(name, []),
+                0.95,
+            ),
+            "skip_reasons": dict(
+                sorted(bucket.candidate_rejections.get(name, {}).items())
+            ),
+        }
+    features: collections.Counter[str] = collections.Counter()
+    for item in outputs:
+        features.update(name for name, present in item.features.items() if present)
+    return {
+        "calls": bucket.calls,
+        "distinct_sessions": len(bucket.sessions),
+        "distinct_source_files": len(bucket.files),
+        "packaging_counts": dict(sorted(bucket.packaging.items())),
+        "confidence": dict(sorted(bucket.confidence.items())),
+        "requested_only_syntax": bucket.requested_only_syntax,
+        "matched_outputs": len(outputs),
+        "unmatched_or_composite_calls": max(0, bucket.calls - len(outputs)),
+        "zero_output_rate": round(
+            sum(item.bytes == 0 for item in outputs) / len(outputs)
+            if outputs
+            else 0.0,
+            6,
+        ),
+        "output": _summary_metrics(outputs),
+        "status_certainty": dict(sorted(bucket.certainty.items())),
+        "feature_counts": dict(sorted(features.items())),
+        "clean_verified_success_outputs": simulations.get(
+            "aggressive_success", {}
+        ).get("transformed_outputs", 0),
+        "clean_verified_success_rate": round(
+            simulations.get("aggressive_success", {}).get("transformed_outputs", 0)
+            / len(outputs)
+            if outputs
+            else 0.0,
+            6,
+        ),
+        "simulations": simulations,
+        "simulation_rejections": {
+            name: dict(sorted(rejections.items()))
+            for name, rejections in sorted(bucket.candidate_rejections.items())
+        },
+        "success_rejections": dict(sorted(bucket.success_rejections.items())),
+        "terse_rejections": dict(sorted(bucket.terse_rejections.items())),
+    }
+
+
+@dataclass
+class ResearchBucket:
+    calls: int = 0
+    sessions: set[str] = field(default_factory=set)
+    files: set[str] = field(default_factory=set)
+    packaging: collections.Counter[str] = field(default_factory=collections.Counter)
+    confidence: collections.Counter[str] = field(default_factory=collections.Counter)
+    requested_only_syntax: int = 0
+    outputs: list[OutputMetrics] = field(default_factory=list)
+    certainty: collections.Counter[str] = field(default_factory=collections.Counter)
+    simulation_counts: collections.Counter[str] = field(default_factory=collections.Counter)
+    simulation_original_bytes: collections.Counter[str] = field(
+        default_factory=collections.Counter
+    )
+    simulation_transformed_bytes: collections.Counter[str] = field(
+        default_factory=collections.Counter
+    )
+    simulation_savings: dict[str, list[int]] = field(
+        default_factory=lambda: collections.defaultdict(list)
+    )
+    simulation_attempted_counts: collections.Counter[str] = field(
+        default_factory=collections.Counter
+    )
+    simulation_attempted_bytes: collections.Counter[str] = field(
+        default_factory=collections.Counter
+    )
+    candidate_rejections: dict[str, collections.Counter[str]] = field(
+        default_factory=lambda: collections.defaultdict(collections.Counter)
+    )
+    success_rejections: collections.Counter[str] = field(default_factory=collections.Counter)
+    terse_rejections: collections.Counter[str] = field(default_factory=collections.Counter)
+
+
+def _add_research_bucket(
+    bucket: ResearchBucket,
+    *,
+    call: ShellInvocation | None,
+    command: ValidationCommand,
+    output: OutputObservation | None = None,
+    output_text: str = "",
+) -> None:
+    bucket.calls += 1
+    bucket.packaging[command.packaging] += 1
+    bucket.confidence[command.confidence] += 1
+    if call is not None:
+        bucket.sessions.add(call.session_id)
+        bucket.files.add(call.source_key)
+    if command.confidence != "high":
+        bucket.requested_only_syntax += 1
+    if output is None:
+        return
+    metrics = output.metrics
+    bucket.outputs.append(metrics)
+    bucket.certainty[metrics.certainty] += 1
+    for candidate in _research_attempted_candidates(metrics.certainty):
+        bucket.simulation_attempted_counts[candidate] += 1
+        bucket.simulation_attempted_bytes[candidate] += metrics.bytes
+    simulations, rejection = _research_simulations(command, metrics, output_text)
+    for name, simulated in simulations.items():
+        bucket.simulation_counts[name] += 1
+        bucket.simulation_original_bytes[name] += metrics.bytes
+        bucket.simulation_transformed_bytes[name] += simulated.bytes
+        bucket.simulation_savings[name].append(max(0, metrics.bytes - simulated.bytes))
+    for candidate, reason in rejection.items():
+        bucket.candidate_rejections[candidate][reason] += 1
+        if reason.startswith(
+            (
+                "not_",
+                "incomplete",
+                "binary",
+                "warnings",
+                "errors",
+                "skipped",
+                "xfail",
+                "deprecated",
+                "failure",
+                "interactive",
+                "uncertainty",
+                "no_tests",
+                "stack",
+                "truncated",
+                "stderr",
+                "zero",
+                "no_reviewed",
+                "unrecognized",
+                "no_byte",
+            )
+        ):
+            bucket.success_rejections[reason] += 1
+        else:
+            bucket.terse_rejections[reason] += 1
+
+
+def _privacy_hash(kind: str, value: str) -> str:
+    return hashlib.sha256(f"{kind}\0{value}".encode("utf-8")).hexdigest()[:20]
+
+
+def _coverage_reasons(state: ScanState) -> list[str]:
+    reasons: list[str] = []
+    source = state.source
+    if state.options.full_history and source.inventory_files == 0:
+        reasons.append("no_rollout_files")
+    if state.options.full_history and (
+        state.options.since is not None or state.options.until is not None
+    ):
+        reasons.append("date_filters_applied")
+    if source.file_limit_reached:
+        reasons.append("file_count_cap_reached")
+    if source.byte_limit_reached:
+        reasons.append("total_byte_cap_reached")
+    if source.truncated_files:
+        reasons.append("per_file_byte_cap_reached")
+    if source.unreadable_files:
+        reasons.append("unreadable_inputs")
+    if source.missing_roots:
+        reasons.append("missing_history_roots")
+    if source.changed_files:
+        reasons.append("inputs_changed_during_scan")
+    if source.invalid_utf8:
+        reasons.append("invalid_utf8_records")
+    if source.invalid_json:
+        reasons.append("invalid_json_records")
+    if source.oversized_lines:
+        reasons.append("oversized_records")
+    if source.partial_trailing_records:
+        reasons.append("partial_trailing_records")
+    if source.skipped_symlinks:
+        reasons.append("symlink_inputs_skipped")
+    harmless_omissions = {"duplicate_physical_file", "exact_duplicate_content"}
+    if (
+        source.omitted_files
+        and any(
+            reason not in harmless_omissions
+            for reason in source.omitted_by_reason
+        )
+        and not reasons
+    ):
+        reasons.append("eligible_inputs_omitted")
+    return reasons
+
+
+def build_census_manifest(state: ScanState) -> dict[str, Any]:
+    source = state.source
+    reasons = _coverage_reasons(state)
+    complete = state.options.full_history and not reasons
+    if state.options.full_history:
+        coverage_status = (
+            "unmeasured"
+            if source.inventory_files == 0
+            else "complete"
+            if complete
+            else "partial"
+        )
+    elif state.options.since is not None or state.options.until is not None:
+        coverage_status = "sampled"
+    else:
+        coverage_status = "bounded_or_filtered"
+    files: list[dict[str, Any]] = []
+    for entry in sorted(
+        source.inventory_entries,
+        key=lambda item: (item.category, item.file_id),
+    ):
+        files.append(
+            {
+                "file_id": entry.file_id,
+                "category": entry.category,
+                "size_bytes": entry.size,
+                "path_date": entry.path_date.isoformat() if entry.path_date else None,
+                "selected": entry.selected,
+                "processed": entry.processed,
+                "duplicate_of_file_id": entry.duplicate_of,
+                "consumed_bytes": entry.consumed_bytes,
+                "records": entry.records,
+                "invalid_utf8": entry.invalid_utf8,
+                "invalid_json": entry.invalid_json,
+                "oversized_records": entry.oversized_lines,
+                "partial_trailing_records": entry.partial_trailing_records,
+                "metadata_changed": (
+                    entry.start_metadata is not None
+                    and entry.end_metadata is not None
+                    and entry.start_metadata != entry.end_metadata
+                ),
+                "omitted": entry.omitted,
+                "omission_reasons": sorted(entry.omission_reasons),
+                "session_ids": sorted(
+                    _privacy_hash("session", value)
+                    for value in entry.session_ids
+                    if value
+                ),
+            }
+        )
+    session_instances = {
+        _privacy_hash("session-instance", f"{source_key}\0{session_id}")
+        for source_key, session_id in state.source_sessions
+    }
+    budget_exhausted = (
+        source.file_limit_reached
+        or source.byte_limit_reached
+        or source.truncated_files > 0
+    )
+    cohort_material = "\n".join(
+        f"{entry.category}\0{entry.file_id}\0{entry.size}\0{entry.mtime_ns}"
+        for entry in sorted(
+            source.inventory_entries,
+            key=lambda item: (item.category, item.file_id),
+        )
+    )
+    return {
+        "manifest_version": 1,
+        "title": "Codex rollout history census manifest",
+        "cohort_id": hashlib.sha256(cohort_material.encode("utf-8")).hexdigest()[:24],
+        "privacy": {
+            "absolute_paths_included": False,
+            "relative_paths_included": False,
+            "session_ids_included": False,
+            "raw_commands_included": False,
+            "raw_outputs_included": False,
+            "identifiers": "truncated_sha256",
+        },
+        "mode": {
+            "full_history": state.options.full_history,
+            "include_archived": (
+                state.options.include_archived or state.options.full_history
+            ),
+            "since": state.options.since.isoformat() if state.options.since else None,
+            "until": state.options.until.isoformat() if state.options.until else None,
+        },
+        "completeness": {
+            "status": coverage_status,
+            "exhaustive": complete,
+            "full_coverage_failed": state.options.full_history and not complete,
+            "reasons": reasons,
+            "omitted_by_reason": dict(sorted(source.omitted_by_reason.items())),
+            "budget_exhausted": budget_exhausted,
+        },
+        "summary": {
+            "files_found": source.inventory_files,
+            "files_eligible": source.eligible_files,
+            "files_scanned": source.processed_files,
+            "files_omitted": source.omitted_files,
+            "current_files_found": source.current_inventory_files,
+            "archived_files_found": source.archived_inventory_files,
+            "current_files_scanned": source.source_categories.get("sessions", 0),
+            "archived_files_scanned": source.source_categories.get(
+                "archived_sessions", 0
+            ),
+            "total_inventory_bytes": source.inventory_bytes,
+            "records": source.records,
+            "distinct_sessions": len(state.sessions_seen),
+            "session_source_instances": len(session_instances),
+            "reused_session_ids_across_sources": max(
+                0, len(session_instances) - len(state.sessions_seen)
+            ),
+            "duplicate_rollout_files": source.duplicate_rollout_files,
+            "duplicate_physical_files": source.duplicate_physical_files,
+            "date_excluded_files": source.date_excluded_files,
+            "archived_excluded_files": source.archived_excluded_files,
+            "skipped_symlinks": source.skipped_symlinks,
+            "missing_roots": source.missing_roots,
+            "missing_root_categories": sorted(source.missing_root_categories),
+            "ignored_non_rollout_files": source.ignored_non_rollout_files,
+            "unreadable_files": source.unreadable_files,
+            "changed_files": source.changed_files,
+            "invalid_utf8_records": source.invalid_utf8,
+            "invalid_json_records": source.invalid_json,
+            "oversized_records": source.oversized_lines,
+            "partial_trailing_records": source.partial_trailing_records,
+        },
+        "budgets": {
+            "max_files": state.options.max_files,
+            "max_file_bytes": state.options.max_file_bytes,
+            "max_total_bytes": state.options.max_total_bytes,
+            "max_line_bytes": state.options.max_line_bytes,
+        },
+        "files": files,
+    }
 
 
 def _attach_outputs(state: ScanState) -> tuple[int, int]:
@@ -1923,6 +3026,14 @@ def build_report(state: ScanState) -> dict[str, Any]:
     candidate_observations: dict[str, list[tuple[OutputMetrics, OutputMetrics | None, bool]]] = (
         collections.defaultdict(list)
     )
+    research_rows: dict[tuple[str, str, str, str, str], ResearchBucket] = {}
+    research_ecosystem_operations: dict[tuple[str, str], ResearchBucket] = {}
+    research_packaging: dict[str, ResearchBucket] = collections.defaultdict(ResearchBucket)
+    research_syntax_rows: dict[
+        tuple[str, str, str, str, str], ResearchBucket
+    ] = {}
+    research_command_count = 0
+    research_syntax_only_count = 0
     command_fingerprints: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
     requested_subcommands = 0
     opaque_subcommands = 0
@@ -1984,6 +3095,32 @@ def build_report(state: ScanState) -> dict[str, Any]:
             for segment in command.segments:
                 syntactically_recovered_families[(segment.family, segment.shape)] += 1
                 syntactic_control_positions[segment.control_position] += 1
+                segment_classification = classify_validation_command(
+                    family=segment.family,
+                    shape=segment.shape,
+                    raw=segment.shape,
+                    confidence="partial",
+                    execution_form="shell_batch",
+                    parent_mixed=True,
+                )
+                if segment_classification is not None:
+                    research_syntax_only_count += 1
+                    syntax_key = (
+                        segment_classification.ecosystem,
+                        segment_classification.operation,
+                        segment_classification.family,
+                        segment_classification.shape,
+                        "syntax_only",
+                    )
+                    syntax_bucket = research_syntax_rows.setdefault(
+                        syntax_key,
+                        ResearchBucket(),
+                    )
+                    _add_research_bucket(
+                        syntax_bucket,
+                        call=None,
+                        command=segment_classification,
+                    )
             if command.opaque_reason is not None:
                 reason_bucket = attribution_reasons[command.opaque_reason]
                 reason_bucket.commands += 1
@@ -2019,6 +3156,58 @@ def build_report(state: ScanState) -> dict[str, Any]:
                 raw_shape_counts,
                 command.shape,
             )
+            classification = classify_validation_command(
+                family=command.family,
+                shape=command.shape,
+                raw=command.raw,
+                confidence=command.confidence,
+                execution_form=call.execution_form,
+                parent_mixed=call.parent_mixed,
+            )
+            if classification is not None:
+                research_command_count += 1
+                exclusive_output = (
+                    call.output
+                    if (
+                        call.output is not None
+                        and call.execution_form == "direct"
+                        and len(call.subcommands) == 1
+                        and command.confidence == "high"
+                        and not call.dry_run
+                    )
+                    else None
+                )
+                research_key = (
+                    classification.ecosystem,
+                    classification.operation,
+                    classification.family,
+                    classification.shape,
+                    classification.packaging,
+                )
+                _add_research_bucket(
+                    research_rows.setdefault(research_key, ResearchBucket()),
+                    call=call,
+                    command=classification,
+                    output=exclusive_output,
+                    output_text=exclusive_output.text if exclusive_output else "",
+                )
+                _add_research_bucket(
+                    research_ecosystem_operations.setdefault(
+                        (classification.ecosystem, classification.operation),
+                        ResearchBucket(),
+                    ),
+                    call=call,
+                    command=classification,
+                    output=exclusive_output,
+                    output_text=exclusive_output.text if exclusive_output else "",
+                )
+                _add_research_bucket(
+                    research_packaging[classification.packaging],
+                    call=call,
+                    command=classification,
+                    output=exclusive_output,
+                    output_text=exclusive_output.text if exclusive_output else "",
+                )
             candidate_id = _candidate_id(command.family, command.shape)
             if candidate_id is not None:
                 _add_to_bucket(
@@ -2329,9 +3518,305 @@ def build_report(state: ScanState) -> dict[str, Any]:
         else:
             workload["other"] += row["calls"]
 
+    census = build_census_manifest(state)
+    taxonomy_rows = []
+    for key, bucket in research_rows.items():
+        ecosystem, operation, family, shape, packaging = key
+        taxonomy_rows.append(
+            {
+                "ecosystem": ecosystem,
+                "operation": operation,
+                "family": family,
+                "shape": shape,
+                "packaging": packaging,
+                **_research_row_dict(bucket),
+            }
+        )
+    taxonomy_rows.sort(
+        key=lambda row: (
+            row["ecosystem"],
+            OPERATIONS.index(row["operation"])
+            if row["operation"] in OPERATIONS
+            else len(OPERATIONS),
+            -row["calls"],
+            row["family"],
+            row["shape"],
+            row["packaging"],
+        )
+    )
+    ecosystem_operation_rows = []
+    for (ecosystem, operation), bucket in research_ecosystem_operations.items():
+        ecosystem_operation_rows.append(
+            {
+                "ecosystem": ecosystem,
+                "operation": operation,
+                **_research_row_dict(bucket),
+            }
+        )
+    ecosystem_operation_rows.sort(
+        key=lambda row: (
+            row["ecosystem"],
+            OPERATIONS.index(row["operation"])
+            if row["operation"] in OPERATIONS
+            else len(OPERATIONS),
+            -row["calls"],
+        )
+    )
+    packaging_rows = [
+        {"packaging": packaging, **_research_row_dict(bucket)}
+        for packaging, bucket in sorted(research_packaging.items())
+    ]
+    syntax_rows = []
+    for key, bucket in research_syntax_rows.items():
+        ecosystem, operation, family, shape, _unused = key
+        syntax_rows.append(
+            {
+                "ecosystem": ecosystem,
+                "operation": operation,
+                "family": family,
+                "shape": shape,
+                **_research_row_dict(bucket),
+            }
+        )
+    syntax_rows.sort(
+        key=lambda row: (
+            row["ecosystem"],
+            row["operation"],
+            -row["calls"],
+            row["family"],
+            row["shape"],
+        )
+    )
+    candidate_definitions = {
+        "aggressive_success": {
+            "title": "Aggressive exact Success! success output",
+            "candidate_output": SUCCESS_OUTPUT,
+            "risk": (
+                "May hide warning, skip, deprecation, no-test, or nonstandard "
+                "diagnostic information despite a zero exit."
+            ),
+            "fallback": (
+                "Original output unless exit is authoritative, output is complete, "
+                "the command formatter is reviewed, and all guard features are absent."
+            ),
+        },
+        "conservative_success": {
+            "title": "Conservative compact success summary",
+            "risk": "May hide warning or package detail not represented in the compact summary.",
+            "fallback": "Original output unless the same strict verified-success gate passes.",
+        },
+        "terse_failure": {
+            "title": "Terse actionable failure diagnostic",
+            "risk": "Parsers can omit unique secondary failures or context needed to repair code.",
+            "fallback": (
+                "Original output for non-authoritative/unknown formats, panics, "
+                "linker/runtime errors, binary output, truncation, timeout, "
+                "cancellation, or parser uncertainty."
+            ),
+        },
+    }
+    research_candidate_rows: list[dict[str, Any]] = []
+    for candidate_id, definition in candidate_definitions.items():
+        transformed = 0
+        transformed_original_bytes = 0
+        attempted_bytes = 0
+        transformed_bytes = 0
+        savings: list[int] = []
+        rejections: collections.Counter[str] = collections.Counter()
+        for bucket in research_rows.values():
+            candidate_transformed = bucket.simulation_counts.get(candidate_id, 0)
+            candidate_rejections = bucket.candidate_rejections.get(candidate_id, {})
+            transformed += candidate_transformed
+            transformed_original_bytes += bucket.simulation_original_bytes.get(
+                candidate_id, 0
+            )
+            attempted_bytes += bucket.simulation_attempted_bytes.get(candidate_id, 0)
+            transformed_bytes += bucket.simulation_transformed_bytes.get(
+                candidate_id, 0
+            )
+            savings.extend(bucket.simulation_savings.get(candidate_id, []))
+            rejections.update(candidate_rejections)
+        saved_bytes = max(0, transformed_original_bytes - transformed_bytes)
+        rejected = sum(rejections.values())
+        research_candidate_rows.append(
+            {
+                "candidate_id": candidate_id,
+                **definition,
+                "eligible_outputs": transformed + rejected,
+                "transformed_outputs": transformed,
+                "skipped_outputs": rejected,
+                "skip_reasons": dict(sorted(rejections.items())),
+                "original_targeted_bytes": attempted_bytes,
+                "transformed_original_bytes": transformed_original_bytes,
+                "transformed_bytes": transformed_bytes,
+                "saved_bytes": saved_bytes,
+                "savings_fraction_of_targeted": round(
+                    saved_bytes / attempted_bytes if attempted_bytes else 0.0,
+                    6,
+                ),
+                "fraction_of_all_matched_output_bytes": round(
+                    attempted_bytes / call_output_bytes if call_output_bytes else 0.0,
+                    6,
+                ),
+                "saved_bytes_p50": _percentile(savings, 0.5),
+                "saved_bytes_p90": _percentile(savings, 0.9),
+                "saved_bytes_p95": _percentile(savings, 0.95),
+                "estimated_observation_token_reduction": _token_range(saved_bytes),
+            }
+        )
+    threshold_bytes = state.options.significance_min_bytes
+    threshold_fraction = state.options.significance_min_fraction
+    gated_rows = []
+    for row in ecosystem_operation_rows:
+        for candidate_id in RESEARCH_CANDIDATES:
+            simulation = row["simulations"].get(candidate_id)
+            if simulation is None:
+                continue
+            saved = simulation["saved_bytes"]
+            target = simulation["original_bytes"]
+            fraction = saved / target if target else 0.0
+            gated_rows.append(
+                {
+                    "ecosystem": row["ecosystem"],
+                    "operation": row["operation"],
+                    "candidate_id": candidate_id,
+                    "targeted_bytes": target,
+                    "saved_bytes": saved,
+                    "savings_fraction_of_targeted": round(fraction, 6),
+                    "meets_bytes_gate": saved >= threshold_bytes,
+                    "meets_fraction_gate": fraction >= threshold_fraction,
+                    "significant": (
+                        saved >= threshold_bytes and fraction >= threshold_fraction
+                    ),
+                }
+            )
+    gated_rows.sort(
+        key=lambda row: (
+            not row["significant"],
+            -row["saved_bytes"],
+            row["ecosystem"],
+            row["operation"],
+            row["candidate_id"],
+        )
+    )
+    certainty_counts: collections.Counter[str] = collections.Counter()
+    for call in state.calls:
+        if call.output is not None:
+            certainty_counts[call.output.metrics.certainty] += 1
+    gate_passed = any(row["significant"] for row in gated_rows)
+    coverage_status = census["completeness"]["status"]
+    if coverage_status == "unmeasured":
+        gate_conclusion = (
+            "Unmeasured: no eligible rollout files were available, so no savings "
+            "finding is asserted."
+        )
+    elif gate_passed and census["completeness"]["exhaustive"]:
+        gate_conclusion = (
+            "Significant savings demonstrated for at least one targeted "
+            "ecosystem/operation in an exhaustive cohort."
+        )
+    elif gate_passed:
+        gate_conclusion = (
+            "Significant savings observed for at least one targeted "
+            "ecosystem/operation, but the cohort is not exhaustive."
+        )
+    elif census["completeness"]["exhaustive"]:
+        gate_conclusion = (
+            "No significant savings demonstrated under both configured gates."
+        )
+    else:
+        gate_conclusion = (
+            "No significant savings demonstrated in the measured subset; the "
+            "full-history cohort is incomplete."
+        )
+    research = {
+        "research_schema_version": 1,
+        "taxonomy_version": TAXONOMY_VERSION,
+        "title": "Compilation and validation output compression research",
+        "cohort_id": census["cohort_id"],
+        "scan_budgets": census["budgets"],
+        "privacy": {
+            "raw_commands_included": False,
+            "raw_outputs_included": False,
+            "paths_included": False,
+            "session_ids_included": False,
+            "reporting_only": True,
+        },
+        "coverage": census["completeness"],
+        "baseline_no_compression": {
+            "matched_output_bytes": call_output_bytes,
+            "transformed_outputs": 0,
+            "saved_bytes": 0,
+            "prompt_or_tool_wrapper_overhead_bytes": None,
+            "wrapper_overhead_status": "not_separately_measured",
+        },
+        "candidate_outputs": research_candidate_rows,
+        "significance_gates": {
+            "minimum_saved_bytes_per_ecosystem_operation": threshold_bytes,
+            "minimum_savings_fraction_of_targeted_bytes": threshold_fraction,
+            "all_matched_output_bytes": call_output_bytes,
+            "cohort_exhaustive": census["completeness"]["exhaustive"],
+            "any_ecosystem_operation_meets_both": gate_passed,
+            "conclusion": gate_conclusion,
+        },
+        "coverage_counts": {
+            "classification_taxonomy_commands": research_command_count,
+            "syntactic_only_classifications": research_syntax_only_count,
+            "matched_outputs": matched_outputs,
+            "status_certainty": dict(sorted(certainty_counts.items())),
+        },
+        "ecosystem_operations": ecosystem_operation_rows,
+        "packaging": packaging_rows,
+        "commands": taxonomy_rows,
+        "syntax_only": syntax_rows,
+        "gated_opportunities": gated_rows,
+        "counterexamples": [
+            {
+                "case": "warning_bearing_exit_zero",
+                "required_behavior": "Retain warning; aggressive success is rejected.",
+            },
+            {
+                "case": "ignored_or_skipped_tests",
+                "required_behavior": "Retain test disposition; aggressive success is rejected.",
+            },
+            {
+                "case": "mixed_batch_output",
+                "required_behavior": "Keep one outer batch output; do not infer per-member success.",
+            },
+            {
+                "case": "failed_nested_invocation",
+                "required_behavior": "Never convert non-authoritative success text into success.",
+            },
+            {
+                "case": "truncated_or_partial_output",
+                "required_behavior": "Passthrough; neither candidate is safe.",
+            },
+            {
+                "case": "unknown_exit_status",
+                "required_behavior": "Passthrough; text markers alone are insufficient.",
+            },
+            {
+                "case": "panic_linker_race_or_runtime_failure",
+                "required_behavior": "Passthrough terse-failure parser output.",
+            },
+        ],
+        "limitations": [
+            "Token ranges are byte heuristics, not tokenizer or provider usage.",
+            "The report measures captured model-visible payload bytes, not cache misses or dollars.",
+            (
+                "Token and byte accounting covers captured payload text; provider "
+                "prompt/tool-schema wrapper overhead is not reconstructed."
+            ),
+            "Output was transformed only in memory and was never executed, replayed, or serialized.",
+            "A future controlled coding-agent A/B study is required before runtime adoption.",
+        ],
+    }
+
     report: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "title": "Codex command frequency and tool-output report",
+        "codex_history_census": census,
+        "compilation_output_research": research,
         "privacy": {
             "raw_commands_included": False,
             "raw_outputs_included": False,
@@ -2346,6 +3831,9 @@ def build_report(state: ScanState) -> dict[str, Any]:
                 "inclusive": True,
             },
             "include_archived": state.options.include_archived,
+            "full_history": state.options.full_history,
+            "coverage_status": census["completeness"]["status"],
+            "exhaustive": census["completeness"]["exhaustive"],
             "source_categories": dict(sorted(state.source.source_categories.items())),
             "limits": {
                 "max_files": state.options.max_files,
@@ -2357,7 +3845,17 @@ def build_report(state: ScanState) -> dict[str, Any]:
         "coverage": {
             "discovered_files": state.source.discovered_files,
             "processed_files": state.source.processed_files,
+            "inventory_files": state.source.inventory_files,
+            "eligible_files": state.source.eligible_files,
+            "omitted_files": state.source.omitted_files,
+            "current_inventory_files": state.source.current_inventory_files,
+            "archived_inventory_files": state.source.archived_inventory_files,
+            "inventory_bytes": state.source.inventory_bytes,
             "sessions": len(state.sessions_seen),
+            "session_source_instances": len(state.source_sessions),
+            "reused_session_ids_across_sources": max(
+                0, len(state.source_sessions) - len(state.sessions_seen)
+            ),
             "records": state.source.records,
             "missing_timestamps": state.missing_timestamps,
             "shell_tool_invocations": shell_invocations,
@@ -2383,11 +3881,16 @@ def build_report(state: ScanState) -> dict[str, Any]:
             "duplicate_request_events": state.duplicate_request_events,
             "conflicting_request_events": state.conflicting_request_events,
             "duplicate_output_events": state.duplicate_output_events,
+            "duplicate_rollout_files": state.source.duplicate_rollout_files,
+            "duplicate_physical_files": state.source.duplicate_physical_files,
             "ambiguous_output_events": state.ambiguous_outputs,
             "malformed_argument_events": state.malformed_arguments,
             "result_match_coverage": round(result_coverage, 6),
             "skipped_symlinks": state.source.skipped_symlinks,
             "unreadable_files": state.source.unreadable_files,
+            "changed_files": state.source.changed_files,
+            "date_excluded_files": state.source.date_excluded_files,
+            "archived_excluded_files": state.source.archived_excluded_files,
             "invalid_utf8_records": state.source.invalid_utf8,
             "invalid_json_records": state.source.invalid_json,
             "oversized_records": state.source.oversized_lines,
@@ -2395,6 +3898,7 @@ def build_report(state: ScanState) -> dict[str, Any]:
             "file_limit_reached": state.source.file_limit_reached,
             "byte_limit_reached": state.source.byte_limit_reached,
             "truncated_files": state.source.truncated_files,
+            "completeness_reasons": census["completeness"]["reasons"],
         },
         "command_frequency": {
             "top_executable_families": family_rows[:20],
@@ -2439,6 +3943,19 @@ def build_report(state: ScanState) -> dict[str, Any]:
             "binary_control_output_records": sum(
                 item.features["binary_control"] for item in all_outputs
             ),
+            "status_certainty_counts": dict(sorted(certainty_counts.items())),
+            "verified_exit_observations": sum(
+                item.certainty in {"success_verified", "failed_verified"}
+                for item in all_outputs
+            ),
+            "text_inferred_status_observations": sum(
+                item.certainty
+                in {"success_text_inferred", "failure_text_inferred"}
+                for item in all_outputs
+            ),
+            "timeout_or_cancelled_observations": sum(
+                item.certainty in {"timeout", "cancelled"} for item in all_outputs
+            ),
         },
         "batching": {
             "batch_tool_invocations": batch_calls,
@@ -2475,9 +3992,10 @@ def build_report(state: ScanState) -> dict[str, Any]:
                     "opaque_attribution",
                 ],
                 "changed_semantics": (
-                    "Version 3 adds the versioned sequence_analysis section and "
-                    "separate command_sequence_report outputs. Existing schema-v2 "
-                    "metrics retain their established meanings."
+                    "Version 3 adds versioned sequence_analysis, "
+                    "codex_history_census, and compilation_output_research sections "
+                    "with separate report artifacts. Existing schema-v2 metrics "
+                    "retain their established meanings."
                 ),
             },
             "observation_token_estimate": {
@@ -3419,6 +4937,347 @@ def render_sequence_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def render_census_markdown(manifest: dict[str, Any]) -> str:
+    summary = manifest["summary"]
+    completeness = manifest["completeness"]
+    budgets = manifest["budgets"]
+    lines = [
+        "# Codex Rollout Census Reconciliation",
+        "",
+        "Privacy-safe local snapshot metadata only. The manifest contains truncated "
+        "hashes instead of absolute paths or session IDs.",
+        "",
+        "## Completeness",
+        "",
+        f"- Verdict: **{completeness['status']}**",
+        f"- Exhaustive: {'yes' if completeness['exhaustive'] else 'no'}",
+        f"- Full coverage failed: "
+        f"{'yes' if completeness['full_coverage_failed'] else 'no'}",
+        f"- Files found / eligible / scanned / omitted (not disjoint): "
+        f"{_format_int(summary['files_found'])} / "
+        f"{_format_int(summary['files_eligible'])} / "
+        f"{_format_int(summary['files_scanned'])} / "
+        f"{_format_int(summary['files_omitted'])}",
+        f"- Current / archived files found: "
+        f"{_format_int(summary['current_files_found'])} / "
+        f"{_format_int(summary['archived_files_found'])}",
+        f"- Current / archived files scanned: "
+        f"{_format_int(summary['current_files_scanned'])} / "
+        f"{_format_int(summary['archived_files_scanned'])}",
+        f"- Distinct sessions / source-session instances: "
+        f"{_format_int(summary['distinct_sessions'])} / "
+        f"{_format_int(summary['session_source_instances'])}",
+        f"- Total inventory bytes: {_format_int(summary['total_inventory_bytes'])}; "
+        f"records: {_format_int(summary['records'])}",
+        "",
+        "Coverage failures: "
+        + (
+            ", ".join(f"`{reason}`" for reason in completeness["reasons"])
+            if completeness["reasons"]
+            else "none"
+        ),
+        "",
+        "## Omissions and mutation evidence",
+        "",
+    ]
+    lines.extend(
+        _markdown_table(
+            ["Reason", "Files/events"],
+            (
+                [f"`{reason}`", _format_int(count)]
+                for reason, count in completeness["omitted_by_reason"].items()
+            ),
+        )
+    )
+    lines.extend(
+        [
+            "",
+            f"- Duplicate rollout content: "
+            f"{_format_int(summary['duplicate_rollout_files'])}",
+            f"- Duplicate physical files: "
+            f"{_format_int(summary['duplicate_physical_files'])}",
+            f"- Reused session IDs across sources: "
+            f"{_format_int(summary['reused_session_ids_across_sources'])}",
+            f"- Changed during scan: {_format_int(summary['changed_files'])}",
+            f"- Invalid UTF-8 / JSON records: "
+            f"{_format_int(summary['invalid_utf8_records'])} / "
+            f"{_format_int(summary['invalid_json_records'])}",
+            f"- Oversized / partial trailing records: "
+            f"{_format_int(summary['oversized_records'])} / "
+            f"{_format_int(summary['partial_trailing_records'])}",
+            "",
+            "## Scan budgets",
+            "",
+        ]
+    )
+    lines.extend(
+        _markdown_table(
+            ["Budget", "Value"],
+            (
+                [f"`{name}`", _format_int(value)]
+                for name, value in budgets.items()
+            ),
+        )
+    )
+    lines.extend(
+        [
+            "",
+            "Duplicate physical files and exact duplicate rollout content are "
+            "reconciled to the first deterministic path in the manifest and are not "
+            "analyzed twice. Legitimately separate files with a reused session ID "
+            "remain separate source histories.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def render_compilation_research_markdown(report: dict[str, Any]) -> str:
+    research = report["compilation_output_research"]
+    coverage = research["coverage"]
+    gates = research["significance_gates"]
+    counts = research["coverage_counts"]
+    lines = [
+        "# Compilation and Validation Output Research",
+        "",
+        "Research-only simulation. Raw commands, paths, diagnostics, outputs, prompts, "
+        "and session IDs are not serialized.",
+        "",
+        "## Coverage",
+        "",
+        f"- Cohort: `{research['cohort_id']}`",
+        f"- Coverage verdict: **{coverage['status']}**",
+        f"- Exhaustive: {'yes' if coverage['exhaustive'] else 'no'}",
+        f"- Classified validation commands: "
+        f"{_format_int(counts['classification_taxonomy_commands'])}",
+        f"- Matched outputs: {_format_int(counts['matched_outputs'])}",
+        f"- Status certainty: "
+        + (
+            ", ".join(
+                f"`{name}`={_format_int(value)}"
+                for name, value in counts["status_certainty"].items()
+            )
+            or "unmeasured"
+        ),
+        "",
+        "## Candidate simulations",
+        "",
+    ]
+    lines.extend(
+        _markdown_table(
+            [
+                "Candidate",
+                "Eligible",
+                "Transformed",
+                "Skipped",
+                "Original bytes",
+                "Saved bytes",
+                "Targeted savings",
+                "All matched output",
+                "Likely token range",
+            ],
+            (
+                [
+                    f"`{row['candidate_id']}`",
+                    _format_int(row["eligible_outputs"]),
+                    _format_int(row["transformed_outputs"]),
+                    _format_int(row["skipped_outputs"]),
+                    _format_int(row["original_targeted_bytes"]),
+                    _format_int(row["saved_bytes"]),
+                    f"{row['savings_fraction_of_targeted']:.1%}",
+                    f"{row['fraction_of_all_matched_output_bytes']:.1%}",
+                    (
+                        f"{_format_int(row['estimated_observation_token_reduction']['lower'])}"
+                        f"–{_format_int(row['estimated_observation_token_reduction']['upper'])}"
+                    ),
+                ]
+                for row in research["candidate_outputs"]
+            ),
+        )
+    )
+    lines.extend(
+        [
+            "",
+            f"Significance gates: "
+            f"{_format_int(gates['minimum_saved_bytes_per_ecosystem_operation'])} "
+            "saved bytes and "
+            f"{gates['minimum_savings_fraction_of_targeted_bytes']:.0%} of targeted "
+            "bytes for an ecosystem/operation.",
+            "",
+            f"**Conclusion:** {gates['conclusion']}",
+            "",
+            "## Ecosystem and operation comparison",
+            "",
+        ]
+    )
+    lines.extend(
+        _markdown_table(
+            [
+                "Ecosystem",
+                "Operation",
+                "Calls",
+                "Sessions",
+                "Matched",
+                "Original bytes",
+                "Clean verified success",
+                "Aggressive saved",
+                "Conservative saved",
+                "Terse failure saved",
+                "Certainty",
+            ],
+            (
+                [
+                    f"`{row['ecosystem']}`",
+                    f"`{row['operation']}`",
+                    _format_int(row["calls"]),
+                    _format_int(row["distinct_sessions"]),
+                    _format_int(row["matched_outputs"]),
+                    _format_int(row["output"]["captured_model_visible_bytes"]),
+                    f"{row['clean_verified_success_rate']:.1%}",
+                    _format_int(
+                        row["simulations"].get("aggressive_success", {}).get(
+                            "saved_bytes", 0
+                        )
+                    ),
+                    _format_int(
+                        row["simulations"].get("conservative_success", {}).get(
+                            "saved_bytes", 0
+                        )
+                    ),
+                    _format_int(
+                        row["simulations"].get("terse_failure", {}).get(
+                            "saved_bytes", 0
+                        )
+                    ),
+                    ", ".join(
+                        f"{name}={value}"
+                        for name, value in row["status_certainty"].items()
+                    )
+                    or "unknown",
+                ]
+                for row in research["ecosystem_operations"]
+            ),
+        )
+    )
+    lines.extend(["", "## Packaging", ""])
+    lines.extend(
+        _markdown_table(
+            ["Packaging", "Calls", "Matched", "Output bytes"],
+            (
+                [
+                    f"`{row['packaging']}`",
+                    _format_int(row["calls"]),
+                    _format_int(row["matched_outputs"]),
+                    _format_int(row["output"]["captured_model_visible_bytes"]),
+                ]
+                for row in research["packaging"]
+            ),
+        )
+    )
+    lines.extend(["", "## Normalized commands and shapes", ""])
+    lines.extend(
+        _markdown_table(
+            [
+                "Ecosystem",
+                "Operation",
+                "Family",
+                "Shape",
+                "Packaging",
+                "Calls",
+                "Sessions",
+                "Matched",
+                "Output bytes",
+                "Aggressive saved",
+                "Terse saved",
+            ],
+            (
+                [
+                    f"`{row['ecosystem']}`",
+                    f"`{row['operation']}`",
+                    f"`{row['family']}`",
+                    f"`{row['shape']}`",
+                    f"`{row['packaging']}`",
+                    _format_int(row["calls"]),
+                    _format_int(row["distinct_sessions"]),
+                    _format_int(row["matched_outputs"]),
+                    _format_int(row["output"]["captured_model_visible_bytes"]),
+                    _format_int(
+                        row["simulations"].get("aggressive_success", {}).get(
+                            "saved_bytes", 0
+                        )
+                    ),
+                    _format_int(
+                        row["simulations"].get("terse_failure", {}).get(
+                            "saved_bytes", 0
+                        )
+                    ),
+                ]
+                for row in research["commands"]
+            ),
+        )
+    )
+    lines.extend(["", "## Gated opportunities", ""])
+    if research["gated_opportunities"]:
+        lines.extend(
+            _markdown_table(
+                [
+                    "Ecosystem",
+                    "Operation",
+                    "Candidate",
+                    "Saved bytes",
+                    "Targeted fraction",
+                    "Both gates",
+                ],
+                (
+                    [
+                        f"`{row['ecosystem']}`",
+                        f"`{row['operation']}`",
+                        f"`{row['candidate_id']}`",
+                        _format_int(row["saved_bytes"]),
+                        f"{row['savings_fraction_of_targeted']:.1%}",
+                        "yes" if row["significant"] else "no",
+                    ]
+                    for row in research["gated_opportunities"]
+                ),
+            )
+        )
+    else:
+        lines.append("No measured simulation reached the gate inputs.")
+    lines.extend(["", "## Syntax-only appearances", ""])
+    if research["syntax_only"]:
+        lines.extend(
+            _markdown_table(
+                ["Ecosystem", "Operation", "Family", "Shape", "Appearances"],
+                (
+                    [
+                        f"`{row['ecosystem']}`",
+                        f"`{row['operation']}`",
+                        f"`{row['family']}`",
+                        f"`{row['shape']}`",
+                        _format_int(row["calls"]),
+                    ]
+                    for row in research["syntax_only"]
+                ),
+            )
+        )
+    else:
+        lines.append("No validation syntax was found only in a compound shell form.")
+    lines.extend(["", "## Required counterexamples", ""])
+    lines.extend(
+        _markdown_table(
+            ["Case", "Required behavior"],
+            (
+                [f"`{row['case']}`", row["required_behavior"]]
+                for row in research["counterexamples"]
+            ),
+        )
+    )
+    lines.extend(["", "## Limitations", ""])
+    lines.extend(f"- {item}" for item in research["limitations"])
+    lines.append("")
+    return "\n".join(lines)
+
+
 def _validate_output_dir(path: Path) -> None:
     if path.exists() and path.is_symlink():
         raise AnalysisError("output directory may not be a symlink")
@@ -3453,6 +5312,31 @@ def write_reports(
     sequence_machine = (
         json.dumps(sequence, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     ).encode("utf-8")
+    research_markdown_path = output_dir / "compilation_output_research.md"
+    research_json_path = output_dir / "compilation_output_research.json"
+    census_manifest_path = output_dir / "codex_history_census_manifest.json"
+    census_summary_path = output_dir / "codex_history_census_summary.md"
+    research_machine = (
+        json.dumps(
+            {
+                "schema_version": report["schema_version"],
+                "research_schema_version": report["compilation_output_research"][
+                    "research_schema_version"
+                ],
+                **report["compilation_output_research"],
+            },
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+        + "\n"
+    ).encode("utf-8")
+    census = report["codex_history_census"]
+    census_machine = (
+        json.dumps(census, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+    research_markdown = render_compilation_research_markdown(report).encode("utf-8")
+    census_markdown = render_census_markdown(census).encode("utf-8")
     for target, content in (
         (markdown_path, markdown),
         (json_path, machine),
@@ -3460,6 +5344,10 @@ def write_reports(
         (diagnostics_json_path, diagnostics_machine),
         (sequence_markdown_path, sequence_markdown),
         (sequence_json_path, sequence_machine),
+        (research_markdown_path, research_markdown),
+        (research_json_path, research_machine),
+        (census_manifest_path, census_machine),
+        (census_summary_path, census_markdown),
     ):
         if target.is_symlink():
             raise AnalysisError("report target may not be a symlink")
@@ -3519,11 +5407,56 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="also analyze rollout files under archived_sessions/",
     )
+    parser.add_argument(
+        "--full-history",
+        action="store_true",
+        help=(
+            "scan current and archived rollouts without default date filtering; "
+            "exit nonzero unless every eligible input is accounted for"
+        ),
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--max-files", type=int, default=DEFAULT_MAX_FILES)
-    parser.add_argument("--max-file-bytes", type=int, default=DEFAULT_MAX_FILE_BYTES)
-    parser.add_argument("--max-total-bytes", type=int, default=DEFAULT_MAX_TOTAL_BYTES)
-    parser.add_argument("--max-line-bytes", type=int, default=DEFAULT_MAX_LINE_BYTES)
+    parser.add_argument(
+        "--max-files",
+        type=int,
+        help=f"default: {DEFAULT_MAX_FILES}, or {FULL_HISTORY_MAX_FILES} for --full-history",
+    )
+    parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        help=(
+            f"default: {DEFAULT_MAX_FILE_BYTES}, or "
+            f"{FULL_HISTORY_MAX_FILE_BYTES} for --full-history"
+        ),
+    )
+    parser.add_argument(
+        "--max-total-bytes",
+        type=int,
+        help=(
+            f"default: {DEFAULT_MAX_TOTAL_BYTES}, or "
+            f"{FULL_HISTORY_MAX_TOTAL_BYTES} for --full-history"
+        ),
+    )
+    parser.add_argument(
+        "--max-line-bytes",
+        type=int,
+        help=(
+            f"default: {DEFAULT_MAX_LINE_BYTES}, or "
+            f"{FULL_HISTORY_MAX_LINE_BYTES} for --full-history"
+        ),
+    )
+    parser.add_argument(
+        "--significance-min-bytes",
+        type=int,
+        default=DEFAULT_SIGNIFICANCE_MIN_BYTES,
+        help="minimum saved bytes per ecosystem/operation (default: 102400)",
+    )
+    parser.add_argument(
+        "--significance-min-fraction",
+        type=float,
+        default=DEFAULT_SIGNIFICANCE_MIN_FRACTION,
+        help="minimum targeted-byte savings fraction from 0 to 1 (default: 0.20)",
+    )
     parser.add_argument(
         "--fingerprint-salt",
         help="optional per-run salt; enables truncated HMAC command fingerprints in JSON",
@@ -3536,6 +5469,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.since and args.until and args.since > args.until:
         print("analyze_codex_commands: --since cannot be after --until", file=sys.stderr)
         return 2
+    if args.significance_min_bytes < 0:
+        print(
+            "analyze_codex_commands: --significance-min-bytes must be nonnegative",
+            file=sys.stderr,
+        )
+        return 2
+    if not 0 <= args.significance_min_fraction <= 1:
+        print(
+            "analyze_codex_commands: --significance-min-fraction must be between 0 and 1",
+            file=sys.stderr,
+        )
+        return 2
     options = AnalysisOptions(
         codex_home=args.codex_home.expanduser(),
         sessions_dir=args.sessions_dir.expanduser() if args.sessions_dir else None,
@@ -3543,10 +5488,37 @@ def main(argv: Sequence[str] | None = None) -> int:
         since=args.since,
         until=args.until,
         include_archived=args.include_archived,
-        max_files=args.max_files,
-        max_file_bytes=args.max_file_bytes,
-        max_total_bytes=args.max_total_bytes,
-        max_line_bytes=args.max_line_bytes,
+        full_history=args.full_history,
+        max_files=(
+            args.max_files
+            if args.max_files is not None
+            else FULL_HISTORY_MAX_FILES
+            if args.full_history
+            else DEFAULT_MAX_FILES
+        ),
+        max_file_bytes=(
+            args.max_file_bytes
+            if args.max_file_bytes is not None
+            else FULL_HISTORY_MAX_FILE_BYTES
+            if args.full_history
+            else DEFAULT_MAX_FILE_BYTES
+        ),
+        max_total_bytes=(
+            args.max_total_bytes
+            if args.max_total_bytes is not None
+            else FULL_HISTORY_MAX_TOTAL_BYTES
+            if args.full_history
+            else DEFAULT_MAX_TOTAL_BYTES
+        ),
+        max_line_bytes=(
+            args.max_line_bytes
+            if args.max_line_bytes is not None
+            else FULL_HISTORY_MAX_LINE_BYTES
+            if args.full_history
+            else DEFAULT_MAX_LINE_BYTES
+        ),
+        significance_min_bytes=args.significance_min_bytes,
+        significance_min_fraction=args.significance_min_fraction,
         fingerprint_salt=args.fingerprint_salt,
     )
     try:
@@ -3564,6 +5536,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"analyze_codex_commands: {exc}", file=sys.stderr)
         return 2
     coverage = report["coverage"]
+    census = report["codex_history_census"]
+    census_summary = census["summary"]
+    completeness = census["completeness"]
+    print(
+        f"Coverage: {completeness['status']}"
+        f"{' (exhaustive)' if completeness['exhaustive'] else ''}; "
+        f"files found/scanned/omitted "
+        f"{census_summary['files_found']}/"
+        f"{census_summary['files_scanned']}/"
+        f"{census_summary['files_omitted']} (omissions may be partial); "
+        f"sessions {coverage['sessions']}; "
+        f"current/archive scanned "
+        f"{census_summary['current_files_scanned']}/"
+        f"{census_summary['archived_files_scanned']}; "
+        f"bytes {census_summary['total_inventory_bytes']}."
+    )
     print(
         "Analyzed "
         f"{coverage['shell_tool_invocations']} shell invocation(s) across "
@@ -3576,6 +5564,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"Diagnostics JSON: {diagnostics_json_path}")
     print(f"Sequence Markdown: {sequence_markdown_path}")
     print(f"Sequence JSON: {sequence_json_path}")
+    print(
+        "Compilation Research Markdown: "
+        f"{options.output_dir / 'compilation_output_research.md'}"
+    )
+    print(
+        "Compilation Research JSON: "
+        f"{options.output_dir / 'compilation_output_research.json'}"
+    )
+    print(
+        "Census Manifest: "
+        f"{options.output_dir / 'codex_history_census_manifest.json'}"
+    )
+    print(
+        "Census Summary: "
+        f"{options.output_dir / 'codex_history_census_summary.md'}"
+    )
+    if completeness["full_coverage_failed"]:
+        print(
+            "analyze_codex_commands: full-history coverage failed: "
+            + ", ".join(completeness["reasons"]),
+            file=sys.stderr,
+        )
+        return 3
     return 0
 
 

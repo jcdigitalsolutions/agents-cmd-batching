@@ -88,7 +88,18 @@ python3 scripts/analyze_codex_commands.py \
   --output-dir "$HOME/codex-command-report"
 ```
 
-The analyzer writes schema-versioned command reports plus private `opaque_command_diagnostics.{md,json}` and `command_sequence_report.{md,json}` files. It never executes extracted commands, reads credentials, or uploads session data. Partial syntactic segments are not treated as evidence that every segment ran, and sequence adjacency is not treated as proof that batching is safe. Its byte-derived token ranges are estimates, not provider-measured uncached input. See [docs/codex-command-frequency.md](docs/codex-command-frequency.md) for the report schemas, attribution rules, sequence-boundary evidence, privacy boundaries, and methodology.
+For an auditable census across both current and archived rollout roots, use `--full-history` without date flags:
+
+```sh
+python3 scripts/analyze_codex_commands.py \
+  --codex-home "$HOME/.codex" \
+  --full-history \
+  --output-dir "$HOME/codex-full-history-report"
+```
+
+Full-history discovery is exhaustive only when every eligible readable rollout and record is accounted for. File/byte/line budgets remain active; caps, missing or empty history roots, unreadable inputs, symlinks, malformed records, partial trailing records, or files changed during scanning produce a partial or unmeasured verdict, an omission manifest, and exit status `3` after the reports are written. Exact duplicate content and hard links are reconciled once without treating the known duplicate as a coverage failure.
+
+The analyzer writes schema-versioned command reports plus private `opaque_command_diagnostics.{md,json}`, `command_sequence_report.{md,json}`, `compilation_output_research.{md,json}`, and `codex_history_census_manifest.json` / `codex_history_census_summary.md` files. It never executes extracted commands, reads credentials, or uploads session data. Partial syntactic segments are not treated as evidence that every segment ran, and sequence adjacency is not treated as proof that batching is safe. `Success!\n` and terse-failure output are research-only in-memory simulations; the analyzer does not implement a runtime `terse` wrapper. Its byte-derived token ranges are estimates, not provider-measured uncached input. See [docs/codex-command-frequency.md](docs/codex-command-frequency.md) for the report schemas, attribution rules, status-certainty rules, compression gates, sequence-boundary evidence, privacy boundaries, and methodology.
 
 The reviewed schema-v2 aggregate report is available in [command_frequency_report.md](command_frequency_report.md) and [command_frequency_report.json](command_frequency_report.json). Detailed sanitized reason and syntax diagnostics are in [opaque_command_diagnostics.md](opaque_command_diagnostics.md) and [opaque_command_diagnostics.json](opaque_command_diagnostics.json).
 
