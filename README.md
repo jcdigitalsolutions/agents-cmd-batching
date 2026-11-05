@@ -105,6 +105,8 @@ The reviewed schema-v2 aggregate report is available in [command_frequency_repor
 
 The reviewed bounded sequence study for 2026-10-29 through 2026-11-01 is available in [command_sequence_report.md](command_sequence_report.md) and [command_sequence_report.json](command_sequence_report.json). It covers six source files and three sessions; the bounded sample contained no explicit batch subcommands, so it does not establish a batched-versus-unbatched incidence rate.
 
+The current full-history research snapshot is available in [compilation_output_research.md](compilation_output_research.md), [compilation_output_research.json](compilation_output_research.json), [codex_history_census_summary.md](codex_history_census_summary.md), and [codex_history_census_manifest.json](codex_history_census_manifest.json). Its verdict remains **partial**, not exhaustive: 48 files were found and scanned, three carried omission reasons, 23 distinct sessions were observed, and the inventory totaled 480,112,072 bytes. It classifies 1,464 validation commands, matches 14,902 outputs, and measures 539,863 bytes (22.1%) of targeted savings for terse failure diagnostics. The full report records the scan limits, status certainty, unsupported cases, and partial-coverage reasons.
+
 ## Research
 
 [REPORT.md](REPORT.md) summarizes the 72-run Go/Rust and 216-run Python/TypeScript/JavaScript comparisons (288 assignments total). These are descriptive studies rather than proof of universal cost savings, speed gains, or code-quality equivalence. Raw artifacts and private environments are deliberately not published in this repository.

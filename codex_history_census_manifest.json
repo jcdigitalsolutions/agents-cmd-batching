@@ -1,0 +1,1086 @@
+{
+  "budgets": {
+    "max_file_bytes": 67108864,
+    "max_files": 100000,
+    "max_line_bytes": 16777216,
+    "max_total_bytes": 8589934592
+  },
+  "cohort_id": "8e310b5753f4ce1dd4e71e87",
+  "completeness": {
+    "budget_exhausted": true,
+    "exhaustive": false,
+    "full_coverage_failed": true,
+    "omitted_by_reason": {
+      "file_changed_during_scan": 1,
+      "per_file_byte_cap": 2
+    },
+    "reasons": [
+      "per_file_byte_cap_reached",
+      "inputs_changed_during_scan",
+      "invalid_json_records",
+      "partial_trailing_records"
+    ],
+    "status": "partial"
+  },
+  "files": [
+    {
+      "category": "sessions",
+      "consumed_bytes": 2151155,
+      "duplicate_of_file_id": null,
+      "file_id": "004ac0018eb81ce0992692cd",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 897,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 2151155
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 34830265,
+      "duplicate_of_file_id": null,
+      "file_id": "07440632cbd4f71ef762b01a",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 12393,
+      "selected": true,
+      "session_ids": [
+        "4d2448c004c94b3ff872"
+      ],
+      "size_bytes": 34830265
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 4152168,
+      "duplicate_of_file_id": null,
+      "file_id": "08cfb3a556be48075638b3f5",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 1429,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 4152168
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 17431308,
+      "duplicate_of_file_id": null,
+      "file_id": "15f06a55b9c2db594756f58b",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 6566,
+      "selected": true,
+      "session_ids": [
+        "4d2448c004c94b3ff872"
+      ],
+      "size_bytes": 17431308
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 19128619,
+      "duplicate_of_file_id": null,
+      "file_id": "161866ce8caaaf37d11f4e0a",
+      "invalid_json": 6,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-29",
+      "processed": true,
+      "records": 6595,
+      "selected": true,
+      "session_ids": [
+        "1bebb9717a040444b60c"
+      ],
+      "size_bytes": 19128619
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 64462,
+      "duplicate_of_file_id": null,
+      "file_id": "21f92d81a6fdb12b28220889",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-05",
+      "processed": true,
+      "records": 17,
+      "selected": true,
+      "session_ids": [
+        "92e4c779e82f47c3ecc9"
+      ],
+      "size_bytes": 64462
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1734968,
+      "duplicate_of_file_id": null,
+      "file_id": "22de881dc3827a39a756ccc2",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 567,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 1734968
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 5674478,
+      "duplicate_of_file_id": null,
+      "file_id": "293b0d54cd49950f8acf984c",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 2123,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 5674478
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 12585248,
+      "duplicate_of_file_id": null,
+      "file_id": "29d586ebdc279eef177ca68b",
+      "invalid_json": 1,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-04",
+      "processed": true,
+      "records": 4795,
+      "selected": true,
+      "session_ids": [
+        "af71da7c94303c2a7593"
+      ],
+      "size_bytes": 12581596
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 3462784,
+      "duplicate_of_file_id": null,
+      "file_id": "2d35432f37d4550f6ca8606c",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 1608,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 3462784
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 3486222,
+      "duplicate_of_file_id": null,
+      "file_id": "3bf704748aabd3502d5904ac",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 1756,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 3486222
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 7075615,
+      "duplicate_of_file_id": null,
+      "file_id": "4806d79470d45c090f45d4dc",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 2565,
+      "selected": true,
+      "session_ids": [
+        "4d2448c004c94b3ff872"
+      ],
+      "size_bytes": 7075615
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 69995,
+      "duplicate_of_file_id": null,
+      "file_id": "5c430fb3e1019c9265a8667d",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 18,
+      "selected": true,
+      "session_ids": [
+        "9c4676517763b332eb70"
+      ],
+      "size_bytes": 69995
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 3423282,
+      "duplicate_of_file_id": null,
+      "file_id": "63c816295be025ad6b0f3682",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 1877,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 3423282
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1201585,
+      "duplicate_of_file_id": null,
+      "file_id": "7794bf0cc44732f95a01c360",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-03",
+      "processed": true,
+      "records": 404,
+      "selected": true,
+      "session_ids": [
+        "25309903eca839b799d0"
+      ],
+      "size_bytes": 1201585
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 281008,
+      "duplicate_of_file_id": null,
+      "file_id": "7994bfde0cd34e6d040a9b15",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-03",
+      "processed": true,
+      "records": 130,
+      "selected": true,
+      "session_ids": [
+        "70f76df24aa408a7edf0"
+      ],
+      "size_bytes": 281008
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1101165,
+      "duplicate_of_file_id": null,
+      "file_id": "7cf1691c2e591a6ac01a7fe8",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-01",
+      "processed": true,
+      "records": 378,
+      "selected": true,
+      "session_ids": [
+        "9c3dc58eb9688562cc63"
+      ],
+      "size_bytes": 1101165
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 2051490,
+      "duplicate_of_file_id": null,
+      "file_id": "825b1ad17dd25bff59190a6a",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 855,
+      "selected": true,
+      "session_ids": [
+        "c57ff5f1c2d435d8b70e"
+      ],
+      "size_bytes": 2051490
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 14623449,
+      "duplicate_of_file_id": null,
+      "file_id": "85511ee5d9d3f79da85c2d6c",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 2276,
+      "selected": true,
+      "session_ids": [
+        "9ceda1eda228f04d6d40"
+      ],
+      "size_bytes": 14623449
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 6185657,
+      "duplicate_of_file_id": null,
+      "file_id": "8a5ba3d9937afa6989f5b81e",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-01",
+      "processed": true,
+      "records": 3119,
+      "selected": true,
+      "session_ids": [
+        "6e5b6eda952c0c9755cc"
+      ],
+      "size_bytes": 6185657
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 273445,
+      "duplicate_of_file_id": null,
+      "file_id": "8a6becbd51f7e02fc2d715d6",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 42,
+      "selected": true,
+      "session_ids": [
+        "62c665931a172a743e61"
+      ],
+      "size_bytes": 273445
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1673148,
+      "duplicate_of_file_id": null,
+      "file_id": "91efeb121e67454fbb5134ff",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 752,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 1673148
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1440590,
+      "duplicate_of_file_id": null,
+      "file_id": "9235368c2c352618502b774f",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 278,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 1440590
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1032523,
+      "duplicate_of_file_id": null,
+      "file_id": "9d32028f4f4005cd9d3e72df",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 242,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 1032523
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 67108864,
+      "duplicate_of_file_id": null,
+      "file_id": "9efe2650ea906dbfdd13a431",
+      "invalid_json": 2,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [
+        "per_file_byte_cap"
+      ],
+      "omitted": true,
+      "oversized_records": 0,
+      "partial_trailing_records": 1,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 23694,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 73691046
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 64249,
+      "duplicate_of_file_id": null,
+      "file_id": "9f0e991263bc773badd3c7d1",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-05",
+      "processed": true,
+      "records": 19,
+      "selected": true,
+      "session_ids": [
+        "73f4af16572f5a88dd9e"
+      ],
+      "size_bytes": 64249
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 2809161,
+      "duplicate_of_file_id": null,
+      "file_id": "acefc736ada8e31ecfbdc35e",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 1074,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 2809161
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 5246043,
+      "duplicate_of_file_id": null,
+      "file_id": "b2b27eebb4fd3186af2f0504",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-03",
+      "processed": true,
+      "records": 1363,
+      "selected": true,
+      "session_ids": [
+        "d6d3659ca9774f000a23"
+      ],
+      "size_bytes": 5246043
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 5611991,
+      "duplicate_of_file_id": null,
+      "file_id": "b322c0334ccea072b5f43ca6",
+      "invalid_json": 1,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 2697,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 5611991
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 13347957,
+      "duplicate_of_file_id": null,
+      "file_id": "b7a389e49f3b352530d7ed7b",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-01",
+      "processed": true,
+      "records": 5755,
+      "selected": true,
+      "session_ids": [
+        "7711bfa32ec920e5d84b"
+      ],
+      "size_bytes": 13347957
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 58841625,
+      "duplicate_of_file_id": null,
+      "file_id": "b8113303a7c3f94a22248d3a",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-29",
+      "processed": true,
+      "records": 23389,
+      "selected": true,
+      "session_ids": [
+        "4d2448c004c94b3ff872"
+      ],
+      "size_bytes": 58841625
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 946319,
+      "duplicate_of_file_id": null,
+      "file_id": "b85f93d58de1fa489baa46ae",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 358,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 946319
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 2328385,
+      "duplicate_of_file_id": null,
+      "file_id": "b9e3521bffb88e0ba3681594",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 887,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 2328385
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 105774,
+      "duplicate_of_file_id": null,
+      "file_id": "bb6b60ece91917d82535237c",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 28,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 105774
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1928783,
+      "duplicate_of_file_id": null,
+      "file_id": "bc859c6f8d6f7f304218c23c",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 555,
+      "selected": true,
+      "session_ids": [
+        "ad0519a4eff542554a11"
+      ],
+      "size_bytes": 1928783
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 188498,
+      "duplicate_of_file_id": null,
+      "file_id": "c07dfce4d1d2b9f95704fe64",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 65,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 188498
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 67108864,
+      "duplicate_of_file_id": null,
+      "file_id": "c19eced39ed3343490cf9746",
+      "invalid_json": 7,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [
+        "per_file_byte_cap"
+      ],
+      "omitted": true,
+      "oversized_records": 0,
+      "partial_trailing_records": 1,
+      "path_date": "2026-11-01",
+      "processed": true,
+      "records": 33983,
+      "selected": true,
+      "session_ids": [
+        "1a7e091ffc6064c72e55"
+      ],
+      "size_bytes": 117602519
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1641999,
+      "duplicate_of_file_id": null,
+      "file_id": "c7a920ba1c3f13d3247f81e5",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 588,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 1641999
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1243688,
+      "duplicate_of_file_id": null,
+      "file_id": "c840a09a75a0ee338d0cee49",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-03",
+      "processed": true,
+      "records": 214,
+      "selected": true,
+      "session_ids": [
+        "6f6ae2cfc7c19a5c3f1a"
+      ],
+      "size_bytes": 1243688
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 80598,
+      "duplicate_of_file_id": null,
+      "file_id": "d6ff65eb7e222193d5e706a6",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-04",
+      "processed": true,
+      "records": 37,
+      "selected": true,
+      "session_ids": [
+        "4c6e8bcc8860e2d68f6b"
+      ],
+      "size_bytes": 80598
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 3634197,
+      "duplicate_of_file_id": null,
+      "file_id": "e177558251c4875763eb7f1d",
+      "invalid_json": 1,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 1302,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 3634197
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 4716044,
+      "duplicate_of_file_id": null,
+      "file_id": "e4077ac996f3d262ae93b921",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 1687,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 4716044
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 63382,
+      "duplicate_of_file_id": null,
+      "file_id": "e6cf4c590d23b4a7e724e224",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-04",
+      "processed": true,
+      "records": 23,
+      "selected": true,
+      "session_ids": [
+        "96c000b4e2f166e9e135"
+      ],
+      "size_bytes": 63382
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 33690573,
+      "duplicate_of_file_id": null,
+      "file_id": "edb3c9ab16c43948ebe193b6",
+      "invalid_json": 2,
+      "invalid_utf8": 0,
+      "metadata_changed": true,
+      "omission_reasons": [
+        "file_changed_during_scan"
+      ],
+      "omitted": true,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-04",
+      "processed": true,
+      "records": 10728,
+      "selected": true,
+      "session_ids": [
+        "db4adda615e496ec1e4f"
+      ],
+      "size_bytes": 33583145
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1104551,
+      "duplicate_of_file_id": null,
+      "file_id": "ef7d9f2e669e8c7b0084e2f2",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-01",
+      "processed": true,
+      "records": 450,
+      "selected": true,
+      "session_ids": [
+        "7711bfa32ec920e5d84b"
+      ],
+      "size_bytes": 1104551
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 1551829,
+      "duplicate_of_file_id": null,
+      "file_id": "f697a136f60d9b1c3cf105aa",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-30",
+      "processed": true,
+      "records": 749,
+      "selected": true,
+      "session_ids": [
+        "1e5fbc00a30a033917be"
+      ],
+      "size_bytes": 1551829
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 3940254,
+      "duplicate_of_file_id": null,
+      "file_id": "f6f38ddfc8830be53cad98d2",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-10-31",
+      "processed": true,
+      "records": 1742,
+      "selected": true,
+      "session_ids": [
+        "6690a8d9ab0dadda9d96"
+      ],
+      "size_bytes": 3940254
+    },
+    {
+      "category": "sessions",
+      "consumed_bytes": 709058,
+      "duplicate_of_file_id": null,
+      "file_id": "fcfa738210827bcab67fea17",
+      "invalid_json": 0,
+      "invalid_utf8": 0,
+      "metadata_changed": false,
+      "omission_reasons": [],
+      "omitted": false,
+      "oversized_records": 0,
+      "partial_trailing_records": 0,
+      "path_date": "2026-11-01",
+      "processed": true,
+      "records": 196,
+      "selected": true,
+      "session_ids": [
+        "7711bfa32ec920e5d84b"
+      ],
+      "size_bytes": 709058
+    }
+  ],
+  "manifest_version": 1,
+  "mode": {
+    "full_history": true,
+    "include_archived": true,
+    "since": null,
+    "until": null
+  },
+  "privacy": {
+    "absolute_paths_included": false,
+    "identifiers": "truncated_sha256",
+    "raw_commands_included": false,
+    "raw_outputs_included": false,
+    "relative_paths_included": false,
+    "session_ids_included": false
+  },
+  "summary": {
+    "archived_excluded_files": 0,
+    "archived_files_found": 0,
+    "archived_files_scanned": 0,
+    "changed_files": 1,
+    "current_files_found": 48,
+    "current_files_scanned": 48,
+    "date_excluded_files": 0,
+    "distinct_sessions": 23,
+    "duplicate_physical_files": 0,
+    "duplicate_rollout_files": 0,
+    "files_eligible": 48,
+    "files_found": 48,
+    "files_omitted": 3,
+    "files_scanned": 48,
+    "ignored_non_rollout_files": 0,
+    "invalid_json_records": 20,
+    "invalid_utf8_records": 0,
+    "missing_root_categories": [],
+    "missing_roots": 0,
+    "oversized_records": 0,
+    "partial_trailing_records": 2,
+    "records": 163265,
+    "reused_session_ids_across_sources": 25,
+    "session_source_instances": 48,
+    "skipped_symlinks": 0,
+    "total_inventory_bytes": 480112072,
+    "unreadable_files": 0
+  },
+  "title": "Codex rollout history census manifest"
+}

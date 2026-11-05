@@ -377,11 +377,16 @@ def classify_validation_command(
                 parent_mixed=parent_mixed,
                 confidence=confidence,
             )
+        safe_subcommand = (
+            subcommand
+            if SAFE_SCRIPT_RE.fullmatch(subcommand)
+            else "<subcommand>"
+        )
         return _base(
             ecosystem="node-ts",
             operation="package-script-unknown",
-            family=f"{executable} {subcommand or '<subcommand>'}",
-            shape=_shape(executable, (subcommand or "<subcommand>",), words),
+            family=f"{executable} {safe_subcommand}",
+            shape=_shape(executable, (safe_subcommand,), words),
             execution_form=execution_form,
             parent_mixed=parent_mixed,
             confidence=confidence,
