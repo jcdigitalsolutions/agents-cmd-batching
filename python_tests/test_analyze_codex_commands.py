@@ -96,6 +96,74 @@ class AnalyzerFixture(unittest.TestCase):
             },
         }
 
+    @staticmethod
+    def response_boundary(
+        response_id,
+        *,
+        timestamp="2026-10-02T10:03:00Z",
+        turn_id="private-turn",
+    ):
+        return {
+            "timestamp": timestamp,
+            "type": "token_usage_record",
+            "payload": {
+                "response_id": response_id,
+                "turn_id": turn_id,
+                "usage": {"input_tokens": 1},
+            },
+        }
+
+    @staticmethod
+    def user_message(timestamp="2026-10-02T10:03:00Z"):
+        return {
+            "timestamp": timestamp,
+            "type": "response_item",
+            "payload": {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "private prompt"}],
+            },
+        }
+
+    @staticmethod
+    def assistant_reasoning(timestamp="2026-10-02T10:03:00Z"):
+        return {
+            "timestamp": timestamp,
+            "type": "response_item",
+            "payload": {
+                "type": "reasoning",
+                "summary": [{"type": "summary_text", "text": "private reasoning"}],
+            },
+        }
+
+    @staticmethod
+    def turn_context(
+        turn_id="private-new-turn",
+        timestamp="2026-10-02T10:03:00Z",
+    ):
+        return {
+            "timestamp": timestamp,
+            "type": "turn_context",
+            "payload": {"turn_id": turn_id, "cwd": "/private/example/project"},
+        }
+
+    @staticmethod
+    def non_shell_call(
+        name="apply_patch",
+        call_id="patch-1",
+        timestamp="2026-10-02T10:03:00Z",
+    ):
+        return {
+            "timestamp": timestamp,
+            "type": "response_item",
+            "payload": {
+                "type": "custom_tool_call",
+                "name": name,
+                "call_id": call_id,
+                "input": "*** Begin Patch\n*** End Patch\n",
+            },
+        }
+
     def write_rollout(
         self,
         events,
@@ -156,6 +224,14 @@ class AnalyzerFixture(unittest.TestCase):
             for row in report["command_frequency"]["top_executable_families"]
             if row["family"] == name
         )
+
+    @staticmethod
+    def sequence_row(report, identities, length=None):
+        length = length or len(identities)
+        for row in report["sequence_analysis"]["ranking"][f"family_{length}"]:
+            if tuple(item["identity"] for item in row["sequence"]) == tuple(identities):
+                return row
+        raise AssertionError(f"sequence not found: {identities}")
 
     def test_extracts_direct_call_correlates_output_and_deduplicates_telemetry(self):
         self.write_rollout(
@@ -277,6 +353,825 @@ class AnalyzerFixture(unittest.TestCase):
             3,
         )
 
+    def test_sequence_identity_merges_batch_and_same_response_direct_calls(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'git status' 'cargo test'",
+                    call_id="batch",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n"
+                    "[delayed-seq] completed: 2 command(s)\n",
+                    call_id="batch",
+                ),
+                self.response_boundary("response-batch"),
+                self.call("git status", call_id="direct-a"),
+                self.call("cargo test", call_id="direct-b"),
+                self.output("clean\n", call_id="direct-a"),
+                self.output("test result: ok\n", call_id="direct-b"),
+                self.response_boundary("response-direct"),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        row = self.sequence_row(report, ("git", "cargo test"))
+        self.assertEqual(row["total"], 2)
+        self.assertEqual(row["explicit_batch"], 1)
+        self.assertEqual(row["separate_direct_calls"], 1)
+        self.assertEqual(row["distinct_sessions_by_mode"]["explicit_batch"], 1)
+        self.assertEqual(row["distinct_sessions_by_mode"]["separate_direct_calls"], 1)
+        self.assertEqual(row["same_response_inferred"], 1)
+        self.assertTrue(row["cross_mode_repeat"])
+        self.assertEqual(
+            sequence["response_boundary_evidence"]["same_response_inferred"],
+            1,
+        )
+        self.assertEqual(
+            sequence["response_boundary_evidence"]["separate_response_observed"],
+            1,
+        )
+
+    def test_triple_sequence_merges_explicit_direct_and_mixed_modes(self):
+        commands = ("cargo fmt --check", "cargo test", "cargo clippy")
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- "
+                    "'cargo fmt --check' 'cargo test' 'cargo clippy'",
+                    call_id="explicit",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/3: succeeded\n"
+                    "[delayed-seq] command 2/3: succeeded\n"
+                    "[delayed-seq] command 3/3: succeeded\n",
+                    call_id="explicit",
+                ),
+                self.user_message(),
+                self.call(commands[0], call_id="direct-a"),
+                self.output(
+                    {"stdout": "format ok\n", "exit_code": 0},
+                    call_id="direct-a",
+                ),
+                self.call(commands[1], call_id="direct-b"),
+                self.output("test result: ok\n", call_id="direct-b"),
+                self.call(commands[2], call_id="direct-c"),
+                self.output(
+                    {"stdout": "lint ok\n", "exit_code": 0},
+                    call_id="direct-c",
+                ),
+                self.response_boundary("direct-response"),
+                self.user_message(timestamp="2026-10-02T10:04:00Z"),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- "
+                    "'cargo fmt --check' 'cargo test'",
+                    call_id="mixed-batch",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="mixed-batch",
+                ),
+                self.call(commands[2], call_id="mixed-direct"),
+                self.output(
+                    {"stdout": "lint ok\n", "exit_code": 0},
+                    call_id="mixed-direct",
+                ),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        row = self.sequence_row(
+            report,
+            ("cargo fmt", "cargo test", "cargo clippy"),
+        )
+        self.assertEqual(row["total"], 3)
+        self.assertEqual(row["explicit_batch"], 1)
+        self.assertEqual(row["separate_direct_calls"], 1)
+        self.assertEqual(row["mixed"], 1)
+        self.assertEqual(row["unknown"], 0)
+        self.assertEqual(row["batched_fraction"], 0.5)
+        self.assertEqual(row["batched_fraction_denominator"], 2)
+        self.assertEqual(row["unbatched_same_response_count"], 1)
+        self.assertEqual(row["unbatched_same_response_fraction"], 0.5)
+        self.assertEqual(row["unbatched_same_response_denominator"], 2)
+        self.assertEqual(row["requested_subcommands"], 9)
+        self.assertEqual(row["confirmed_executed_subcommands"], 9)
+        self.assertEqual(row["unknown_subcommand_statuses"], 0)
+        self.assertEqual(row["matched_invocations"], 6)
+        self.assertEqual(row["invocation_occurrences"], 6)
+        self.assertEqual(
+            row["within_session_mode_overlap"][
+                "explicit_and_direct_session_instances"
+            ],
+            1,
+        )
+        self.assertTrue(row["cross_mode_same_response_repeat"])
+        self.assertIn(
+            row,
+            report["sequence_analysis"]["cross_mode_same_response_repeats"][
+                "family_3"
+            ],
+        )
+        self.assertEqual(
+            row["by_mode"]["separate_direct_calls"]["same_response_inferred"],
+            1,
+        )
+        self.assertEqual(
+            row["by_mode"]["separate_direct_calls"]["intervening_events"],
+            {"tool_output_only": 2},
+        )
+
+    def test_response_ids_override_equal_timestamps_and_physical_order_wins(self):
+        same_time = "2026-10-02T10:01:00Z"
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call("git status", call_id="a1", timestamp=same_time),
+                self.output("clean\n", call_id="a1", timestamp=same_time),
+                self.response_boundary("response-one", timestamp=same_time),
+                self.call("cargo test", call_id="b1", timestamp=same_time),
+                self.output("test result: ok\n", call_id="b1", timestamp=same_time),
+                self.response_boundary("response-two", timestamp=same_time),
+                self.call("git status", call_id="a2", timestamp=same_time),
+                self.output("clean\n", call_id="a2", timestamp=same_time),
+                self.response_boundary("response-three", timestamp=same_time),
+                self.call("cargo test", call_id="b2", timestamp=same_time),
+                self.output("test result: ok\n", call_id="b2", timestamp=same_time),
+                self.response_boundary("response-four", timestamp=same_time),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        row = self.sequence_row(report, ("git", "cargo test"))
+        self.assertEqual(row["separate_direct_calls"], 2)
+        self.assertEqual(row["same_response_inferred"], 0)
+        self.assertEqual(
+            report["sequence_analysis"]["response_boundary_evidence"][
+                "separate_response_observed"
+            ],
+            3,
+        )
+        self.assertEqual(
+            report["sequence_analysis"]["elapsed_time_histogram"]["lt_1s"],
+            3,
+        )
+
+    def test_user_turn_breaks_sequence_but_output_and_reasoning_are_retained(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call("git status", call_id="a"),
+                self.output("clean\n", call_id="a"),
+                self.assistant_reasoning(),
+                self.call("cargo test", call_id="b"),
+                self.output("test result: ok\n", call_id="b"),
+                self.call("git status", call_id="c"),
+                self.output("clean\n", call_id="c"),
+                self.assistant_reasoning(timestamp="2026-10-02T10:03:30Z"),
+                self.call("cargo test", call_id="d"),
+                self.output("test result: ok\n", call_id="d"),
+                self.user_message(timestamp="2026-10-02T10:04:00Z"),
+                self.call("rg needle src", call_id="e"),
+                self.output("needle\n", call_id="e"),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        row = self.sequence_row(report, ("git", "cargo test"))
+        self.assertEqual(row["separate_direct_calls"], 2)
+        self.assertEqual(
+            row["intervening_events"]["assistant_decision_observed"],
+            2,
+        )
+        self.assertEqual(sequence["coverage"]["hard_boundaries"], 1)
+        self.assertEqual(
+            sequence["intervening_event_histogram"][
+                "user_turn_or_session_boundary"
+            ],
+            1,
+        )
+        self.assertEqual(sequence["coverage"]["occurrences_by_length"]["2"], 3)
+
+    def test_turn_context_creates_a_hard_sequence_boundary(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call("git status", call_id="before"),
+                self.output("clean\n", call_id="before"),
+                self.turn_context(),
+                self.call("cargo test", call_id="after"),
+                self.output("test result: ok\n", call_id="after"),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        self.assertEqual(sequence["coverage"]["hard_boundaries"], 1)
+        self.assertEqual(sequence["ranking"]["family_2"], [])
+        self.assertEqual(
+            sequence["intervening_event_histogram"][
+                "user_turn_or_session_boundary"
+            ],
+            1,
+        )
+
+    def test_failed_direct_retry_sequence_is_not_a_static_candidate(self):
+        def pair(suffix, failed, timestamp):
+            return [
+                self.call(
+                    "cargo test",
+                    call_id=f"a-{suffix}",
+                    timestamp=timestamp,
+                ),
+                self.output(
+                    "test result: failed\n" if failed else "test result: ok\n",
+                    call_id=f"a-{suffix}",
+                    timestamp=timestamp,
+                ),
+                self.call(
+                    "cargo clippy",
+                    call_id=f"b-{suffix}",
+                    timestamp=timestamp,
+                ),
+                self.output(
+                    "clean\n",
+                    call_id=f"b-{suffix}",
+                    timestamp=timestamp,
+                ),
+            ]
+
+        self.write_rollout(
+            [
+                self.session_meta(),
+                *pair("one", True, "2026-10-02T10:01:00Z"),
+                self.response_boundary("response-one"),
+                self.user_message(timestamp="2026-10-02T10:02:00Z"),
+                *pair("two", False, "2026-10-02T10:03:00Z"),
+                self.response_boundary("response-two"),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        row = self.sequence_row(report, ("cargo test", "cargo clippy"))
+        self.assertEqual(row["observed_status"]["failed"], 1)
+        self.assertEqual(row["candidate_category"], "decision_dependent")
+
+    def test_overlapping_lengths_and_edit_interruptions_are_counted(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call("rg needle src", call_id="a"),
+                self.output("needle\n", call_id="a"),
+                self.call("git status", call_id="b"),
+                self.output("clean\n", call_id="b"),
+                self.non_shell_call(),
+                self.call("cargo test", call_id="c"),
+                self.output("test result: ok\n", call_id="c"),
+                self.call("pytest -q", call_id="d"),
+                self.output("1 passed\n", call_id="d"),
+                self.user_message(timestamp="2026-10-02T10:03:30Z"),
+                self.call("rg needle src", call_id="e"),
+                self.output("needle\n", call_id="e"),
+                self.call("git status", call_id="f"),
+                self.output("clean\n", call_id="f"),
+                self.non_shell_call(call_id="patch-2"),
+                self.call("cargo test", call_id="g"),
+                self.output("test result: ok\n", call_id="g"),
+                self.call("pytest -q", call_id="h"),
+                self.output("1 passed\n", call_id="h"),
+                self.response_boundary("response-all"),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        self.assertEqual(
+            sequence["coverage"]["occurrences_by_length"],
+            {"2": 6, "3": 4, "4": 2},
+        )
+        self.assertEqual(
+            sequence["coverage"]["non_overlapping_occurrences_by_length"],
+            {"2": 4, "3": 2, "4": 2},
+        )
+        pair = self.sequence_row(report, ("git", "cargo test"))
+        self.assertEqual(pair["total"], 2)
+        self.assertEqual(pair["intervening_events"]["edit_or_other_tool"], 2)
+        self.assertEqual(pair["same_response_inferred"], 1)
+        quadruple = self.sequence_row(
+            report,
+            ("rg", "git", "cargo test", "pytest"),
+        )
+        self.assertEqual(quadruple["same_response_inferred"], 1)
+        transition = next(
+            row
+            for row in sequence["transitions"]["rows"]
+            if row["first"] == "git" and row["second"] == "cargo test"
+        )
+        self.assertEqual(transition["count"], 2)
+        self.assertGreater(
+            transition["next_command_exclusive_output_bytes"],
+            0,
+        )
+        self.assertGreaterEqual(
+            transition["denominator"],
+            transition["count"],
+        )
+
+    def test_mixed_and_cross_batch_windows_are_not_conflated(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'git status' 'rg needle src'",
+                    call_id="batch-one",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="batch-one",
+                ),
+                self.call("cargo test", call_id="direct"),
+                self.output("test result: ok\n", call_id="direct"),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'pytest -q' 'go test ./...'",
+                    call_id="batch-two",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="batch-two",
+                ),
+                self.response_boundary("response-one"),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'git status' 'rg needle src'",
+                    call_id="batch-three",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="batch-three",
+                ),
+                self.call("cargo test", call_id="direct-two"),
+                self.output("test result: ok\n", call_id="direct-two"),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'pytest -q' 'go test ./...'",
+                    call_id="batch-four",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="batch-four",
+                ),
+                self.user_message(timestamp="2026-10-02T10:05:00Z"),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'cargo clippy' 'go test ./...'",
+                    call_id="batch-five",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="batch-five",
+                ),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'git status' 'pytest -q'",
+                    call_id="batch-six",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="batch-six",
+                ),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'cargo clippy' 'go test ./...'",
+                    call_id="batch-seven",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="batch-seven",
+                ),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'git status' 'pytest -q'",
+                    call_id="batch-eight",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="batch-eight",
+                ),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        mixed = self.sequence_row(report, ("rg", "cargo test"))
+        self.assertEqual(mixed["mixed"], 2)
+        self.assertEqual(mixed["explicit_batch"], 0)
+        self.assertEqual(mixed["separate_direct_calls"], 0)
+        cross_batch = self.sequence_row(report, ("go test", "git"))
+        self.assertEqual(cross_batch["unknown"], 3)
+        self.assertEqual(
+            cross_batch["unknown_reasons"],
+            {"multiple_batch_boundaries": 3},
+        )
+        self.assertEqual(cross_batch["mixed"], 0)
+
+    def test_batch_requested_versus_confirmed_execution_is_conservative(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'git status' 'rg x src' 'cargo test'",
+                    call_id="one-failure",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/3: succeeded\n"
+                    "[delayed-seq] command 2/3: failed\n"
+                    "[delayed-seq] failed: command 3/3 not started\n",
+                    call_id="one-failure",
+                ),
+                self.call(
+                    "delayed-seq --dry-run -- 'go test ./...' 'pytest -q' 'git diff'",
+                    call_id="dry",
+                ),
+                self.output(
+                    '{"event":"dry-run","index":1}\n'
+                    '{"event":"dry-run","index":2}\n'
+                    '{"event":"dry-run","index":3}\n',
+                    call_id="dry",
+                ),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'npm test' 'git status'",
+                    call_id="missing",
+                ),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        coverage = report["sequence_analysis"]["coverage"]
+        self.assertEqual(coverage["requested_batch_subcommands"], 8)
+        self.assertEqual(coverage["confirmed_executed_batch_subcommands"], 2)
+        self.assertEqual(coverage["unknown_batch_subcommand_statuses"], 6)
+
+    def test_timeout_cancellation_and_malformed_wrapper_remain_unknown(self):
+        commands = "'git status' 'cargo test'"
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call(
+                    f"delayed-seq --initial-delay 0 -- {commands}",
+                    call_id="timeout",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: timed out\n",
+                    call_id="timeout",
+                ),
+                self.call(
+                    f"delayed-seq --initial-delay 0 -- {commands}",
+                    call_id="malformed",
+                    raw_arguments="{not-json",
+                ),
+                self.call(
+                    f"delayed-seq --initial-delay 0 -- {commands}",
+                    call_id="cancelled",
+                ),
+                self.output(
+                    "[delayed-seq] cancelled before completion\n",
+                    call_id="cancelled",
+                ),
+            ]
+        )
+        report, markdown, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        row = self.sequence_row(report, ("git", "cargo test"))
+        self.assertEqual(row["explicit_batch"], 2)
+        self.assertEqual(row["confirmed_executed_occurrences"], 0)
+        self.assertEqual(row["requested_only_occurrences"], 2)
+        self.assertEqual(row["requested_subcommands"], 4)
+        self.assertEqual(row["confirmed_executed_subcommands"], 0)
+        self.assertEqual(row["unknown_subcommand_statuses"], 4)
+        self.assertEqual(row["observed_status"]["failed"], 1)
+        self.assertEqual(row["observed_status"]["unknown"], 1)
+        self.assertEqual(row["candidate_category"], "decision_dependent")
+        self.assertEqual(sequence["coverage"]["requested_batch_subcommands"], 4)
+        self.assertEqual(
+            sequence["coverage"]["confirmed_executed_batch_subcommands"],
+            0,
+        )
+        self.assertEqual(sequence["coverage"]["hard_boundaries"], 1)
+        sequence_markdown = (
+            self.output_dir / "command_sequence_report.md"
+        ).read_text()
+        candidate = next(
+            row
+            for row in sequence["batching_candidates"]
+            if row["sequence"] == ["git", "cargo test"]
+        )
+        self.assertTrue(candidate["shape_examples"])
+        shape_example = " → ".join(
+            f"`{value}`"
+            for value in candidate["shape_examples"][0]["shape_sequence"]
+        )
+        self.assertIn("Requested-only occurrences", sequence_markdown)
+        self.assertIn("Subcommands req/conf/unknown", sequence_markdown)
+        self.assertIn("Sanitized shape sample", sequence_markdown)
+        self.assertIn(shape_example, sequence_markdown)
+
+    def test_ambiguous_custom_bundle_is_excluded_from_ordered_sequences(self):
+        source = """
+        const results = await Promise.all([
+          tools.exec_command({cmd: "git status"}),
+          tools.exec_command({cmd: "cargo test"}),
+        ]);
+        text(results);
+        """
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call("git status", call_id="before-bundle"),
+                self.output("clean\n", call_id="before-bundle"),
+                self.custom_exec(source),
+                self.output("combined private output\n", call_id="custom-1"),
+                self.call("cargo test", call_id="after-bundle"),
+                self.output("test result: ok\n", call_id="after-bundle"),
+            ]
+        )
+        report, markdown, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        self.assertEqual(
+            sequence["coverage"]["ambiguous_ordering_invocations_excluded"],
+            2,
+        )
+        self.assertEqual(sequence["ranking"]["family_2"], [])
+        self.assertEqual(sequence["coverage"]["hard_boundaries"], 1)
+        combined = markdown + json.dumps(report)
+        self.assertNotIn("combined private output", combined)
+        self.assertNotIn("Promise.all", combined)
+
+    def test_non_awaited_custom_bundle_is_excluded_from_ordered_sequences(self):
+        source = """
+        const first = tools.exec_command({cmd: "git status"});
+        const second = tools.exec_command({cmd: "cargo test"});
+        text(first);
+        text(second);
+        """
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.custom_exec(source),
+                self.output("combined output\n", call_id="custom-1"),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        self.assertEqual(
+            sequence["coverage"]["ambiguous_ordering_invocations_excluded"],
+            2,
+        )
+        self.assertEqual(sequence["ranking"]["family_2"], [])
+        self.assertNotIn("tools.exec_command", json.dumps(report))
+
+    def test_reused_session_ids_across_sources_never_join_sequences(self):
+        first = self.codex_home / "sessions" / "2026" / "10" / "02"
+        second = self.codex_home / "archived_sessions" / "2026" / "10" / "02"
+        self.write_rollout(
+            [
+                self.session_meta(session_id="shared-session"),
+                self.call("git status", call_id="first"),
+                self.output("clean\n", call_id="first"),
+            ],
+            directory=first,
+            name="rollout-2026-10-02T10-00-00-first.jsonl",
+        )
+        self.write_rollout(
+            [
+                self.session_meta(session_id="shared-session"),
+                self.call("cargo test", call_id="second"),
+                self.output("test result: ok\n", call_id="second"),
+            ],
+            directory=second,
+            name="rollout-2026-10-02T10-00-00-second.jsonl",
+        )
+        report, _, _, _ = self.run_analyzer(include_archived=True)
+        sequence = report["sequence_analysis"]
+        self.assertEqual(sequence["coverage"]["sessions"], 1)
+        self.assertEqual(sequence["coverage"]["source_files"], 2)
+        self.assertEqual(sequence["coverage"]["reused_session_ids_across_sources"], 1)
+        self.assertEqual(sequence["coverage"]["occurrences_by_length"]["2"], 0)
+
+    def test_reused_session_and_call_ids_are_scoped_to_source_file(self):
+        self.write_rollout(
+            [
+                self.session_meta(session_id="shared-session"),
+                self.call("git status", call_id="shared-call"),
+                self.output("clean\n", call_id="shared-call"),
+            ],
+            name="rollout-2026-10-02T10-00-00-first.jsonl",
+        )
+        self.write_rollout(
+            [
+                self.session_meta(session_id="shared-session"),
+                self.call("cargo test", call_id="shared-call"),
+                self.output("test result: ok\n", call_id="shared-call"),
+            ],
+            name="rollout-2026-10-02T10-00-00-second.jsonl",
+        )
+        report, _, _, _ = self.run_analyzer()
+        self.assertEqual(report["coverage"]["shell_tool_invocations"], 2)
+        self.assertEqual(report["coverage"]["matched_shell_invocations"], 2)
+        self.assertEqual(report["coverage"]["conflicting_request_events"], 0)
+        self.assertEqual(self.family(report, "git")["calls"], 1)
+        self.assertEqual(self.family(report, "cargo test")["calls"], 1)
+        self.assertEqual(
+            report["sequence_analysis"]["coverage"]["occurrences_by_length"]["2"],
+            0,
+        )
+
+    def test_sequence_session_support_distinguishes_reused_source_instances(self):
+        events = [
+            self.session_meta(session_id="shared-session"),
+            self.call(
+                "delayed-seq --initial-delay 0 -- 'git status' 'cargo test'",
+                call_id="shared-call",
+            ),
+            self.output(
+                "[delayed-seq] command 1/2: succeeded\n"
+                "[delayed-seq] command 2/2: succeeded\n",
+                call_id="shared-call",
+            ),
+        ]
+        self.write_rollout(
+            events,
+            name="rollout-2026-10-02T10-00-00-first.jsonl",
+        )
+        self.write_rollout(
+            events,
+            name="rollout-2026-10-02T10-00-00-second.jsonl",
+        )
+        report, _, _, _ = self.run_analyzer()
+        row = self.sequence_row(report, ("git", "cargo test"))
+        self.assertEqual(row["total"], 2)
+        self.assertEqual(row["distinct_sessions"], 1)
+        self.assertEqual(row["distinct_session_instances"], 2)
+        self.assertEqual(
+            report["sequence_analysis"]["coverage"][
+                "reused_session_ids_across_sources"
+            ],
+            1,
+        )
+
+    def test_assistant_message_prevents_false_same_response_assignment(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call("git status", call_id="a1"),
+                self.output("clean\n", call_id="a1"),
+                self.assistant_reasoning(),
+                self.call("cargo test", call_id="b1"),
+                self.output("test result: ok\n", call_id="b1"),
+                self.response_boundary("ambiguous-later-response"),
+                self.call("git status", call_id="a2"),
+                self.output("clean\n", call_id="a2"),
+                self.assistant_reasoning(timestamp="2026-10-02T10:04:00Z"),
+                self.call("cargo test", call_id="b2"),
+                self.output("test result: ok\n", call_id="b2"),
+                self.response_boundary("another-later-response"),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        row = self.sequence_row(report, ("git", "cargo test"))
+        self.assertEqual(row["separate_direct_calls"], 2)
+        self.assertEqual(row["same_response_inferred"], 0)
+        self.assertEqual(row["by_mode"]["separate_direct_calls"]["same_response_inferred"], 0)
+        self.assertGreater(
+            report["sequence_analysis"]["response_boundary_evidence"][
+                "unknown_response_boundary"
+            ],
+            0,
+        )
+
+    def test_awaited_custom_bundle_preserves_order_as_unknown_packaging(self):
+        source = """
+        const first = await tools.exec_command({cmd: "git status"});
+        const second = await tools.exec_command({cmd: "cargo test"});
+        text(first);
+        text(second);
+        """
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.custom_exec(source, call_id="bundle-one"),
+                self.output("bundle result\n", call_id="bundle-one"),
+                self.custom_exec(source, call_id="bundle-two"),
+                self.output("bundle result\n", call_id="bundle-two"),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        self.assertEqual(
+            sequence["coverage"]["ambiguous_ordering_invocations_excluded"],
+            0,
+        )
+        row = self.sequence_row(report, ("git", "cargo test"))
+        self.assertEqual(row["unknown"], 2)
+        self.assertEqual(row["unknown_reasons"], {"custom_outer_bundle": 2})
+        self.assertEqual(row["separate_direct_calls"], 0)
+        self.assertEqual(row["same_response_inferred"], 0)
+
+    def test_native_proxy_and_shell_batches_merge_to_one_canonical_sequence(self):
+        native = {
+            "type": "function_call",
+            "name": "delayed_seq",
+            "call_id": "native",
+            "arguments": json.dumps({"commands": ["git status", "cargo test"]}),
+        }
+        self.write_rollout(
+            [
+                self.session_meta(),
+                {
+                    "timestamp": "2026-10-02T10:01:00Z",
+                    "type": "response_item",
+                    "payload": native,
+                },
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="native",
+                ),
+                self.call(
+                    "CODEX_ROUTING_PROXY_VIRTUAL_BATCH=1 "
+                    "delayed-seq --initial-delay 0 -- 'git status' 'cargo test'",
+                    call_id="proxy",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="proxy",
+                ),
+                self.call(
+                    "delayed-seq --initial-delay 0 -- 'git status' 'cargo test'",
+                    call_id="shell",
+                ),
+                self.output(
+                    "[delayed-seq] command 1/2: succeeded\n"
+                    "[delayed-seq] command 2/2: succeeded\n",
+                    call_id="shell",
+                ),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        row = self.sequence_row(report, ("git", "cargo test"))
+        self.assertEqual(row["explicit_batch"], 3)
+        self.assertEqual(
+            row["by_mode"]["explicit_batch"]["occurrences"],
+            3,
+        )
+
+    def test_invalid_record_is_a_hard_physical_boundary(self):
+        path = self.sessions / "rollout-invalid-between.jsonl"
+        events = [
+            self.session_meta(),
+            self.call("git status", call_id="a"),
+            self.output("clean\n", call_id="a"),
+            self.call("cargo test", call_id="b"),
+            self.output("test result: ok\n", call_id="b"),
+        ]
+        with path.open("wb") as handle:
+            for index, event in enumerate(events):
+                if index == 2:
+                    handle.write(b"{bad-json\n")
+                handle.write(json.dumps(event).encode("utf-8") + b"\n")
+        report, _, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        self.assertEqual(sequence["coverage"]["hard_boundaries"], 1)
+        self.assertEqual(
+            sequence["coverage"]["timeline_event_kinds"]["unknown"],
+            1,
+        )
+        self.assertEqual(sequence["ranking"]["family_2"], [])
+
+    def test_replayed_call_and_output_ids_do_not_inflate_sequence_windows(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call("git status", call_id="a"),
+                self.output("clean\n", call_id="a"),
+                self.call("cargo test", call_id="b"),
+                self.output("test result: ok\n", call_id="b"),
+                self.call("git status", call_id="a"),
+                self.output("clean\n", call_id="a"),
+                self.call("cargo test", call_id="b"),
+                self.output("test result: ok\n", call_id="b"),
+                self.response_boundary("response-one"),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        sequence = report["sequence_analysis"]
+        self.assertEqual(report["coverage"]["duplicate_request_events"], 2)
+        self.assertEqual(report["coverage"]["duplicate_output_events"], 2)
+        self.assertEqual(sequence["coverage"]["occurrences_by_length"]["2"], 1)
+        self.assertEqual(
+            sequence["coverage"]["non_overlapping_occurrences_by_length"]["2"],
+            1,
+        )
+        self.assertEqual(sequence["ranking"]["family_2"], [])
+
     def test_opaque_shell_forms_are_not_misattributed(self):
         self.write_rollout(
             [
@@ -302,6 +1197,77 @@ class AnalyzerFixture(unittest.TestCase):
         self.assertNotIn("super-secret-output", combined)
         self.assertNotIn("/private/example/project", combined)
         self.assertNotIn("private-session", combined)
+
+    def test_legacy_schema_v2_metrics_are_unchanged_on_frozen_fixture(self):
+        self.write_rollout(
+            [
+                self.session_meta(),
+                self.call("cargo fmt --check", call_id="format"),
+                self.output("format ok\n", call_id="format"),
+                self.call("cargo test", call_id="test"),
+                self.output("test result: ok. 3 passed\n", call_id="test"),
+                self.call("rg x src | head -1", call_id="opaque"),
+                self.output("x\n", call_id="opaque"),
+                self.non_shell_call(),
+            ]
+        )
+        report, _, _, _ = self.run_analyzer()
+        self.assertEqual(
+            {
+                "discovered_files": report["coverage"]["discovered_files"],
+                "processed_files": report["coverage"]["processed_files"],
+                "shell_tool_invocations": report["coverage"][
+                    "shell_tool_invocations"
+                ],
+                "requested_underlying_subcommands": report["coverage"][
+                    "requested_underlying_subcommands"
+                ],
+                "matched_shell_invocations": report["coverage"][
+                    "matched_shell_invocations"
+                ],
+                "high_confidence_single_subcommands": report["coverage"][
+                    "high_confidence_single_subcommands"
+                ],
+                "partial_syntactic_subcommands": report["coverage"][
+                    "partial_syntactic_subcommands"
+                ],
+                "opaque_subcommands": report["coverage"]["opaque_subcommands"],
+                "legacy_v1_opaque_subcommands": report["coverage"][
+                    "legacy_v1_opaque_subcommands"
+                ],
+                "non_shell_tool_invocations": report["coverage"][
+                    "non_shell_tool_invocations"
+                ],
+                "unmatched_result_records": report["coverage"][
+                    "unmatched_result_records"
+                ],
+            },
+            {
+                "discovered_files": 1,
+                "processed_files": 1,
+                "shell_tool_invocations": 3,
+                "requested_underlying_subcommands": 3,
+                "matched_shell_invocations": 3,
+                "high_confidence_single_subcommands": 2,
+                "partial_syntactic_subcommands": 1,
+                "opaque_subcommands": 1,
+                "legacy_v1_opaque_subcommands": 1,
+                "non_shell_tool_invocations": 1,
+                "unmatched_result_records": 0,
+            },
+        )
+        self.assertEqual(
+            report["batching"]["requested_subcommands"],
+            3,
+        )
+        self.assertEqual(
+            report["batching"]["observed_subcommand_outcomes"],
+            {"succeeded": 1, "failed": 0, "unknown": 2},
+        )
+        self.assertEqual(
+            report["opaque_attribution"]["summary"]["requested_commands"],
+            3,
+        )
 
     def test_opaque_reason_taxonomy_and_quoted_operators(self):
         cases = {
@@ -463,9 +1429,22 @@ class AnalyzerFixture(unittest.TestCase):
         diagnostics_markdown_path = self.output_dir / "opaque_command_diagnostics.md"
         diagnostics = json.loads(diagnostics_path.read_text())
         diagnostics_markdown = diagnostics_markdown_path.read_text()
-        self.assertEqual(report["schema_version"], 2)
+        sequence = json.loads(
+            (self.output_dir / "command_sequence_report.json").read_text()
+        )
+        sequence_markdown = (
+            self.output_dir / "command_sequence_report.md"
+        ).read_text()
+        self.assertEqual(report["schema_version"], 3)
         self.assertIn("opaque_attribution", report)
-        self.assertEqual(diagnostics["schema_version"], 2)
+        self.assertIn("sequence_analysis", report)
+        self.assertEqual(diagnostics["schema_version"], 3)
+        self.assertEqual(sequence["schema_version"], 1)
+        self.assertEqual(sequence["parent_schema_version"], 3)
+        self.assertEqual(
+            sequence["sequence_analysis"],
+            report["sequence_analysis"],
+        )
         self.assertEqual(
             diagnostics["summary"]["requested_commands"],
             report["coverage"]["requested_underlying_subcommands"],
@@ -483,6 +1462,8 @@ class AnalyzerFixture(unittest.TestCase):
             self.output_dir / "command_frequency_report.json",
             diagnostics_path,
             diagnostics_markdown_path,
+            self.output_dir / "command_sequence_report.md",
+            self.output_dir / "command_sequence_report.json",
         ):
             self.assertTrue(path.is_file())
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
@@ -491,6 +1472,7 @@ class AnalyzerFixture(unittest.TestCase):
             + json.dumps(report)
             + diagnostics_markdown
             + json.dumps(diagnostics)
+            + json.dumps(sequence)
             + stdout
             + stderr
         )
@@ -502,6 +1484,11 @@ class AnalyzerFixture(unittest.TestCase):
             "/private/example/project",
         ):
             self.assertNotIn(secret, combined)
+        self.assertIn("Sequence Markdown:", stdout)
+        self.assertIn("Sequence JSON:", stdout)
+        self.assertIn("## Edge evidence", sequence_markdown)
+        self.assertIn("### Response-boundary evidence", sequence_markdown)
+        self.assertIn("## Observed command transitions", sequence_markdown)
 
     def test_ambiguous_and_unmatched_outputs_are_reported_conservatively(self):
         self.write_rollout(
@@ -759,6 +1746,8 @@ class AnalyzerFixture(unittest.TestCase):
             "command_frequency_report.json",
             "opaque_command_diagnostics.md",
             "opaque_command_diagnostics.json",
+            "command_sequence_report.md",
+            "command_sequence_report.json",
         ):
             self.assertEqual(
                 (self.root / "first" / filename).read_bytes(),
@@ -789,6 +1778,8 @@ class AnalyzerFixture(unittest.TestCase):
             "command_frequency_report.json",
             "opaque_command_diagnostics.md",
             "opaque_command_diagnostics.json",
+            "command_sequence_report.md",
+            "command_sequence_report.json",
         ):
             path = self.output_dir / name
             self.assertTrue(path.is_file())

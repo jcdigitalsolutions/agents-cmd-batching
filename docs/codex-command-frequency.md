@@ -1,12 +1,13 @@
 # Local Codex command-frequency analysis
 
-`scripts/analyze_codex_commands.py` is a read-only observational tool for local Codex rollout histories. It answers five bounded questions:
+`scripts/analyze_codex_commands.py` is a read-only observational tool for local Codex rollout histories. It answers six bounded questions:
 
 1. Which shell tool calls, executable families, and normalized command shapes occur most often?
 2. How much model-visible tool output was correlated to those calls?
 3. Which deterministic `terse` output adapters have measured or plausible opportunities, and what information could they lose?
 4. Where are `delayed-seq` batches used, and how large is the deliberately non-causal consecutive-command heuristic?
 5. Why were shell commands left unresolved, and which compound forms contain defensible syntax-only executable families?
+6. Which normalized two-, three-, and four-command sequences repeat, in what packaging and observable response-boundary contexts?
 
 It does not build or deploy a `terse` runtime wrapper. It also does not establish cached-token behavior, billed cost, or universal command savings.
 
@@ -36,16 +37,18 @@ Useful bounds and overrides:
 
 The date window is inclusive. Only regular `rollout-*.jsonl` files are read. Directory and file symlinks are skipped, and no file is modified.
 
-The command prints only aggregate counts and the four output paths. Reports are created with `0700` directory and `0600` file permissions:
+The command prints only aggregate counts and the six output paths. Reports are created with `0700` directory and `0600` file permissions:
 
 ```text
 command_frequency_report.md
 command_frequency_report.json
 opaque_command_diagnostics.md
 opaque_command_diagnostics.json
+command_sequence_report.md
+command_sequence_report.json
 ```
 
-The normal report contains an additive `opaque_attribution` section. The diagnostics files contain the full reason/feature cross-tabs. Prefer an output directory outside the repository. Local reports must not be committed or published without explicit review and approval.
+The normal report contains additive `opaque_attribution` and `sequence_analysis` sections. The diagnostics files contain the full reason/feature cross-tabs. The sequence files contain the standalone sequence schema and rankings. Prefer an output directory outside the repository. Local reports must not be committed or published without explicit review and approval.
 
 ## Observed local envelope forms
 
@@ -58,6 +61,16 @@ The implementation was checked against bounded local schema metadata rather than
 - plain `delayed-seq -- ...`, the routing-proxy marker form, and native `delayed_seq` command lists.
 
 The parser is intentionally conservative. If a future schema or JavaScript object is not understood, it is left out of command-family attribution rather than guessed from text. Invalid JSON, invalid UTF-8, oversized records, partial trailing records, conflicts, and unmatched results are counted as coverage limitations.
+
+Observed sequence-boundary structures include:
+
+- `response_item.payload.type = reasoning` and message roles for user/assistant events;
+- `event_msg` `task_started`, `task_complete`, `turn_aborted`, and `item_completed` records;
+- `turn_context.turn_id` as a conservative new-turn boundary;
+- `token_usage_record.response_id` for verifiable model-response grouping;
+- shell calls and outputs linked by exact call ID.
+
+No prompt, reasoning text, message text, output excerpt, raw command, or session ID is retained in a sequence report. A timestamp gap is never used as evidence of a response boundary.
 
 ## Command attribution
 
@@ -80,6 +93,56 @@ Schema version 2 keeps invocation and requested-command denominators separate fr
 A partial segment is syntax evidence only. It does not prove that the executable started, succeeded, or produced any part of the combined output. `coverage.opaque_subcommands` remains the count without high-confidence executable attribution for comparability, while new fields split that count into `partial_syntactic_subcommands` and `strict_opaque_subcommands`.
 
 Normalized shapes contain only allowlisted executable/family labels, recognized option names, and placeholders such as `<pattern>` or `<paths>`; values, patterns, paths, environment values, and raw commands are not serialized.
+
+## Ordered sequence analysis
+
+The top-level command report is schema version 3. Its additive `sequence_analysis` section has `sequence_schema_version: 1`; established schema-v2 metrics keep their prior meanings. The standalone sequence JSON also uses sequence schema version 1.
+
+Sequence keys contain:
+
+- `family` or `shape` granularity;
+- the ordered tuple of two to four normalized command identities;
+- parser-confidence evidence.
+
+Packaging is deliberately excluded from the canonical key. The same ordered identities aggregate into one row whether observed as:
+
+- `explicit_batch`: a known `delayed-seq` or native batch invocation;
+- `separate_direct_calls`: successive direct shell invocations;
+- `mixed_batch_and_direct`: one batch plus adjacent direct calls;
+- `unknown`: a window spanning multiple batches or lacking defensible ordering.
+
+Each canonical row retains separate occurrence counts, distinct-session and source-session support by mode, matched-call coverage, requested-only versus confirmed-executed occurrences, atom-level requested/confirmed/unknown subcommand counts, observed status and failure rate, exclusively attributable output bytes, and intervening-event classes. The cross-mode table reports how many source-session instances contain both explicit-batch and separate-direct evidence, without serializing session identifiers.
+
+Ordering is physical JSONL order within one source file. Files are never merged by timestamp or reused session ID. A reused session ID across source files increases `reused_session_ids_across_sources`; source histories remain separate.
+
+Direct-call boundaries use these evidence classes:
+
+- `same_response_inferred` only when direct calls share the next explicit `token_usage_record.response_id`;
+- `separate_response_observed` when adjacent calls resolve to different explicit response IDs;
+- `unknown_response_boundary` when no defensible response ID is available.
+
+Intervening classes distinguish `none_observed`, tool output only, an observed assistant reasoning/message action, edits or other tools, user/turn/session boundaries, and unknown. These labels describe the trace, not hidden provider state. An absent reasoning record does not prove that a model decision did not occur.
+
+Custom `exec` bundles with multiple shell calls preserve their source order only when every call site is a separately awaited operation. Their packaging remains `unknown` because this is one outer tool bundle, not proof of separate shell invocations or an explicit batch. `Promise.all`/`allSettled`/`race`/`any` and other non-awaited multi-call bundles are treated as ambiguously ordered and excluded from sequence atoms. A single nested shell call can remain an ordered observation. Shell pipelines, boolean chains, variable expansion, heredocs, and other compound shell expressions remain one invocation; syntax-only segments are never promoted to batch steps.
+
+Sequence counts use overlapping windows by definition. Four consecutive commands produce three pair windows, two triple windows, and one four-command window. `coverage.occurrences_by_length` exposes these overlapping totals. Repeated rankings include only canonical sequences observed at least twice.
+
+`coverage.non_overlapping_occurrences_by_length` separately reports a greedy non-overlapping count per ordered chain. That metric is not used for rankings and does not convert overlapping windows into independent samples.
+
+The transition section reports `P(B next | A)` with its observed denominator and distinct-session support. It also lists low-frequency transitions that produced large exclusively attributable next-command output; these are review priorities, not evidence that either command should be suppressed or batched.
+
+Unknown packaging is broken down as `custom_outer_bundle`, `multiple_batch_boundaries`, or `unresolved_packaging` on each canonical row. Invalid or ambiguous physical records create hard `unknown` boundaries, so sequences are not manufactured across missing data.
+
+Batch requested-versus-confirmed accounting is conservative:
+
+- requested counts are the known subcommands in every batch;
+- confirmed counts require explicit success/failure markers or a matched complete status;
+- dry runs, timeouts, missing output, malformed wrappers, and unreported early-stopped commands remain unknown;
+- batch output is never multiplied across its subcommands.
+
+`batched_fraction` uses only explicit and separate-direct occurrences as its eligible denominator and excludes mixed and unknown windows. It is a descriptive packaging ratio, not a claim about how often batching was safe. `unbatched_same_response_count` is zero unless explicit response-ID evidence supports it; `unbatched_same_response_fraction` uses the same explicit-plus-direct denominator. Repeated sequences with both explicit-batch and same-response direct evidence are ranked separately because that consistency is stronger review evidence than an unknown response boundary.
+
+The conservative candidate table labels parsed family sequences as `plausible_static_sequence`, `already_batched`, `mixed_evidence_requires_review`, `decision_dependent`, or `unsafe_or_ambiguous`, with sanitized normalized-shape examples. Observed failures force a decision-dependent classification before mixed, batched, or otherwise static labels are considered. These are review aids and upper bounds, not automatic rewrite instructions.
 
 ## Opaque reason diagnostics
 

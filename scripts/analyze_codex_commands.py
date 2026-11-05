@@ -28,9 +28,14 @@ from codex_shell_analysis import (
     analyze_shell_command,
     lex_simple_words,
 )
+from codex_sequence_analysis import (
+    SEQUENCE_SCHEMA_VERSION,
+    TimelineEvent,
+    build_sequence_analysis,
+)
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 DEFAULT_MAX_FILES = 1_000
 DEFAULT_MAX_FILE_BYTES = 32 * 1024 * 1024
 DEFAULT_MAX_TOTAL_BYTES = 512 * 1024 * 1024
@@ -134,6 +139,7 @@ class CommandView:
 
 @dataclass
 class ShellInvocation:
+    source_key: str
     session_id: str
     project_category: str
     timestamp: str
@@ -146,6 +152,8 @@ class ShellInvocation:
     dry_run: bool = False
     parent_mixed: bool = False
     duplicate_signature: tuple[Any, ...] = ()
+    bundle_id: str = ""
+    ordering_evidence: str = "ordered"
     output_match: str = "unmatched"
     output: OutputObservation | None = None
     status: str = "unknown"
@@ -173,15 +181,15 @@ class ScanState:
     options: AnalysisOptions
     source: SourceStats = field(default_factory=SourceStats)
     calls: list[ShellInvocation] = field(default_factory=list)
-    calls_by_result_key: dict[tuple[str, str], list[ShellInvocation]] = field(
+    calls_by_result_key: dict[tuple[str, str, str], list[ShellInvocation]] = field(
         default_factory=lambda: collections.defaultdict(list)
     )
-    call_keys: dict[tuple[str, str], ShellInvocation] = field(default_factory=dict)
-    outputs_by_key: dict[tuple[str, str], list[OutputObservation]] = field(
+    call_keys: dict[tuple[str, str, str], ShellInvocation] = field(default_factory=dict)
+    outputs_by_key: dict[tuple[str, str, str], list[OutputObservation]] = field(
         default_factory=lambda: collections.defaultdict(list)
     )
     non_shell_tools: collections.Counter[str] = field(default_factory=collections.Counter)
-    non_shell_call_keys: set[tuple[str, str]] = field(default_factory=set)
+    non_shell_call_keys: set[tuple[str, str, str]] = field(default_factory=set)
     duplicate_request_events: int = 0
     conflicting_request_events: int = 0
     malformed_arguments: int = 0
@@ -191,6 +199,15 @@ class ScanState:
     serial: int = 0
     sessions_seen: set[str] = field(default_factory=set)
     missing_timestamps: int = 0
+    timeline_events: list[TimelineEvent] = field(default_factory=list)
+    timeline_sequence: int = 0
+
+
+@dataclass
+class ProcessedCall:
+    invocations: list[ShellInvocation] = field(default_factory=list)
+    non_shell_kinds: list[str] = field(default_factory=list)
+    unknown: bool = False
 
 
 @dataclass(frozen=True)
@@ -603,6 +620,25 @@ def _extract_embedded_tool_calls(source: str) -> tuple[list[tuple[str, dict[str,
     return calls, failures
 
 
+def _embedded_shell_ordering(source: str) -> str:
+    masked = _mask_js_strings_and_comments(source)
+    if re.search(r"\bPromise\.(?:all|allSettled|race|any)\s*\(", masked):
+        return "ambiguous"
+    positions = [
+        match.start()
+        for match in re.finditer(r"\btools\.([A-Za-z_][A-Za-z0-9_]*)\s*\(", masked)
+        if match.group(1) in SHELL_TOOL_NAMES | NATIVE_BATCH_TOOL_NAMES
+    ]
+    if len(positions) <= 1:
+        return "ordered"
+    if all(
+        re.search(r"\bawait\s*$", masked[max(0, position - 80) : position])
+        for position in positions
+    ):
+        return "ordered"
+    return "ambiguous"
+
+
 def _tokenize_simple_shell(command: str) -> list[str]:
     return lex_simple_words(command)
 
@@ -752,20 +788,25 @@ def _plan_invocation(tool_name: str, arguments: dict[str, Any]) -> InvocationPla
 def _add_invocation(
     state: ScanState,
     *,
+    source_key: str,
     session_id: str,
     timestamp: str,
     call_id: str,
     result_key: str,
     plan: InvocationPlan,
     parent_mixed: bool = False,
-) -> None:
+    bundle_id: str = "",
+    ordering_evidence: str = "ordered",
+) -> ShellInvocation | None:
     signature = (
         plan.tool_name,
         plan.execution_form,
         plan.dry_run,
         tuple(command.raw for command in plan.subcommands),
+        bundle_id,
+        ordering_evidence,
     )
-    key = (session_id, call_id)
+    key = (source_key, session_id, call_id)
     existing = state.call_keys.get(key)
     if existing is not None:
         if existing.duplicate_signature == signature:
@@ -773,9 +814,10 @@ def _add_invocation(
         else:
             state.conflicting_request_events += 1
             existing.output_match = "ambiguous_request"
-        return
+        return None
     state.serial += 1
     invocation = ShellInvocation(
+        source_key=source_key,
         session_id=session_id,
         project_category=_project_category(),
         timestamp=timestamp,
@@ -788,11 +830,14 @@ def _add_invocation(
         dry_run=plan.dry_run,
         parent_mixed=parent_mixed,
         duplicate_signature=signature,
+        bundle_id=bundle_id,
+        ordering_evidence=ordering_evidence,
     )
     state.call_keys[key] = invocation
-    state.calls_by_result_key[(session_id, result_key)].append(invocation)
+    state.calls_by_result_key[key[:-1] + (result_key,)].append(invocation)
     state.calls.append(invocation)
     state.sessions_seen.add(session_id)
+    return invocation
 
 
 def _project_category() -> str:
@@ -802,17 +847,20 @@ def _project_category() -> str:
 def _process_call_payload(
     state: ScanState,
     *,
+    source_key: str,
     session_id: str,
     timestamp: str,
     payload: dict[str, Any],
-) -> None:
+) -> ProcessedCall:
+    processed = ProcessedCall()
     call_type = payload.get("type")
     if call_type not in {"function_call", "custom_tool_call"}:
-        return
+        return processed
     call_id = payload.get("call_id")
     if not isinstance(call_id, str) or not call_id:
         state.malformed_arguments += 1
-        return
+        processed.unknown = True
+        return processed
     name = _normal_tool_name(payload.get("name"))
 
     if call_type == "function_call":
@@ -820,28 +868,40 @@ def _process_call_payload(
         if malformed or arguments is None:
             state.malformed_arguments += 1
             if name in SHELL_TOOL_NAMES | NATIVE_BATCH_TOOL_NAMES:
-                return
+                processed.unknown = True
+                return processed
         else:
             plan = _plan_invocation(name, arguments)
             if plan is not None:
-                _add_invocation(
+                invocation = _add_invocation(
                     state,
+                    source_key=source_key,
                     session_id=session_id,
                     timestamp=timestamp,
                     call_id=call_id,
                     result_key=call_id,
                     plan=plan,
                 )
-                return
+                if invocation is not None:
+                    processed.invocations.append(invocation)
+                return processed
+            if name in SHELL_TOOL_NAMES | NATIVE_BATCH_TOOL_NAMES:
+                processed.unknown = True
+                return processed
         state.non_shell_tools[name] += 1
-        state.non_shell_call_keys.add((session_id, call_id))
-        return
+        state.non_shell_call_keys.add((source_key, session_id, call_id))
+        processed.non_shell_kinds.append(
+            "edit" if name == "apply_patch" else "non_shell_call"
+        )
+        return processed
 
     raw_input = payload.get("input")
     if name == "exec" and isinstance(raw_input, str):
         state.custom_bundle_count += 1
         embedded, failures = _extract_embedded_tool_calls(raw_input)
         state.malformed_arguments += failures
+        if failures:
+            processed.unknown = True
         shell_calls: list[tuple[str, dict[str, Any]]] = []
         non_shell = 0
         for embedded_name, arguments in embedded:
@@ -851,24 +911,38 @@ def _process_call_payload(
             else:
                 non_shell += 1
                 state.non_shell_tools[normalized] += 1
+                processed.non_shell_kinds.append(
+                    "edit" if normalized == "apply_patch" else "non_shell_call"
+                )
+        bundle_ordering = _embedded_shell_ordering(raw_input)
+        if bundle_ordering == "ambiguous":
+            processed.unknown = True
         for index, (embedded_name, arguments) in enumerate(shell_calls):
             plan = _plan_invocation(embedded_name, arguments)
             if plan is None:
                 state.malformed_arguments += 1
+                processed.unknown = True
                 continue
-            _add_invocation(
+            invocation = _add_invocation(
                 state,
+                source_key=source_key,
                 session_id=session_id,
                 timestamp=timestamp,
                 call_id=f"{call_id}#{index}",
                 result_key=call_id,
                 plan=plan,
                 parent_mixed=non_shell > 0 or len(shell_calls) > 1,
+                bundle_id=call_id,
+                ordering_evidence=bundle_ordering,
             )
+            if invocation is not None:
+                processed.invocations.append(invocation)
         if not shell_calls:
             state.non_shell_tools["exec"] += 1
-            state.non_shell_call_keys.add((session_id, call_id))
-        return
+            state.non_shell_call_keys.add((source_key, session_id, call_id))
+            if not processed.non_shell_kinds:
+                processed.non_shell_kinds.append("non_shell_call")
+        return processed
 
     if isinstance(raw_input, str):
         try:
@@ -878,17 +952,27 @@ def _process_call_payload(
         if isinstance(parsed, dict):
             plan = _plan_invocation(name, parsed)
             if plan is not None:
-                _add_invocation(
+                invocation = _add_invocation(
                     state,
+                    source_key=source_key,
                     session_id=session_id,
                     timestamp=timestamp,
                     call_id=call_id,
                     result_key=call_id,
                     plan=plan,
                 )
-                return
+                if invocation is not None:
+                    processed.invocations.append(invocation)
+                return processed
+            if name in SHELL_TOOL_NAMES | NATIVE_BATCH_TOOL_NAMES:
+                processed.unknown = True
+                return processed
     state.non_shell_tools[name] += 1
-    state.non_shell_call_keys.add((session_id, call_id))
+    state.non_shell_call_keys.add((source_key, session_id, call_id))
+    processed.non_shell_kinds.append(
+        "edit" if name == "apply_patch" else "non_shell_call"
+    )
+    return processed
 
 
 def _detect_status(text: str) -> str:
@@ -1082,30 +1166,215 @@ def _make_output_observation(value: Any) -> OutputObservation:
 def _process_output_payload(
     state: ScanState,
     *,
+    source_key: str,
     session_id: str,
     payload: dict[str, Any],
-) -> None:
+) -> str:
     if payload.get("type") not in {"function_call_output", "custom_tool_call_output"}:
-        return
+        return "none"
     call_id = payload.get("call_id")
     if not isinstance(call_id, str) or not call_id or "output" not in payload:
         state.malformed_arguments += 1
-        return
+        return "unknown"
     observation = _make_output_observation(payload["output"])
-    key = (session_id, call_id)
+    key = (source_key, session_id, call_id)
     existing = state.outputs_by_key.get(key, [])
     if existing:
         if existing[0].fingerprint == observation.fingerprint:
             state.duplicate_output_events += 1
+            return "duplicate"
         else:
             state.ambiguous_outputs += 1
             existing.append(observation)
-        return
+            return "unknown"
     state.outputs_by_key[key].append(observation)
+    if key in state.calls_by_result_key:
+        return "shell_output"
+    if key in state.non_shell_call_keys:
+        return "non_shell_output"
+    return "unknown"
 
 
 def _session_fallback(path: Path) -> str:
     return hashlib.sha256(path.name.encode("utf-8")).hexdigest()
+
+
+def _turn_id(payload: dict[str, Any]) -> str | None:
+    value = payload.get("turn_id")
+    return value if isinstance(value, str) and value else None
+
+
+def _add_timeline_event(
+    state: ScanState,
+    *,
+    source_key: str,
+    session_id: str,
+    record_index: int,
+    timestamp: str,
+    kind: str,
+    call_id: str = "",
+    invocation_serial: int | None = None,
+    response_id: str | None = None,
+    turn_id: str | None = None,
+    bundle_id: str | None = None,
+    ordering_evidence: str = "ordered",
+) -> None:
+    state.timeline_sequence += 1
+    state.timeline_events.append(
+        TimelineEvent(
+            sequence_index=state.timeline_sequence,
+            source_key=source_key,
+            session_id=session_id,
+            record_index=record_index,
+            timestamp=timestamp,
+            kind=kind,
+            call_id=call_id,
+            invocation_serial=invocation_serial,
+            response_id=response_id,
+            turn_id=turn_id,
+            bundle_id=bundle_id,
+            ordering_evidence=ordering_evidence,
+        )
+    )
+
+
+def _timeline_item_completed_kind(payload: dict[str, Any]) -> str | None:
+    item = payload.get("item")
+    if not isinstance(item, dict):
+        return "other"
+    item_type = item.get("type")
+    if item_type == "UserMessage":
+        return "user_turn"
+    if item_type in {"Reasoning", "AgentMessage"}:
+        return "assistant_decision_or_message"
+    if item_type == "FileChange":
+        return "edit"
+    if item_type == "CommandExecution":
+        return "shell_output"
+    if item_type == "PatchApply":
+        return "edit"
+    if item_type in {
+        "McpToolCall",
+        "CollabAgentToolCall",
+        "SubAgentActivity",
+        "Extension",
+        "ImageView",
+    }:
+        return "non_shell_output"
+    if item_type == "ContextCompaction":
+        return "turn_boundary"
+    return "other"
+
+
+def _emit_record_timeline(
+    state: ScanState,
+    *,
+    row: dict[str, Any],
+    payload: dict[str, Any],
+    source_key: str,
+    session_id: str,
+    record_index: int,
+    timestamp: str,
+) -> None:
+    row_type = row.get("type")
+    common = {
+        "source_key": source_key,
+        "session_id": session_id,
+        "record_index": record_index,
+        "timestamp": timestamp,
+        "turn_id": _turn_id(payload),
+    }
+    if row_type == "token_usage_record":
+        response_id = payload.get("response_id")
+        if isinstance(response_id, str) and response_id:
+            _add_timeline_event(
+                state,
+                kind="response_boundary",
+                response_id=response_id,
+                **common,
+            )
+        return
+    if row_type == "turn_context":
+        if _turn_id(payload) is not None:
+            _add_timeline_event(state, kind="turn_boundary", **common)
+        return
+    if row_type == "event_msg":
+        event_type = payload.get("type")
+        if event_type in {"task_started", "task_complete", "turn_aborted"}:
+            _add_timeline_event(state, kind="turn_boundary", **common)
+        elif event_type == "item_completed":
+            kind = _timeline_item_completed_kind(payload)
+            if kind is not None:
+                _add_timeline_event(state, kind=kind, **common)
+        return
+    if row_type != "response_item":
+        return
+
+    payload_type = payload.get("type")
+    call_id = payload.get("call_id")
+    safe_call_id = call_id if isinstance(call_id, str) else ""
+    if payload_type in {"function_call", "custom_tool_call"}:
+        processed = _process_call_payload(
+            state,
+            source_key=source_key,
+            session_id=session_id,
+            timestamp=timestamp,
+            payload=payload,
+        )
+        for invocation in processed.invocations:
+            _add_timeline_event(
+                state,
+                kind="shell_call",
+                call_id=invocation.call_id,
+                invocation_serial=invocation.serial,
+                bundle_id=invocation.bundle_id or None,
+                ordering_evidence=invocation.ordering_evidence,
+                **common,
+            )
+        for kind in processed.non_shell_kinds:
+            _add_timeline_event(state, kind=kind, call_id=safe_call_id, **common)
+        if processed.unknown:
+            _add_timeline_event(state, kind="unknown", call_id=safe_call_id, **common)
+        return
+    if payload_type in {"function_call_output", "custom_tool_call_output"}:
+        kind = _process_output_payload(
+            state,
+            source_key=source_key,
+            session_id=session_id,
+            payload=payload,
+        )
+        if kind in {"none", "duplicate"}:
+            return
+        serial = None
+        matching = state.calls_by_result_key.get(
+            (source_key, session_id, safe_call_id),
+            [],
+        )
+        if len(matching) == 1:
+            serial = matching[0].serial
+        _add_timeline_event(
+            state,
+            kind=kind,
+            call_id=safe_call_id,
+            invocation_serial=serial,
+            **common,
+        )
+        return
+    if payload_type == "reasoning":
+        kind = "assistant_decision_or_message"
+    elif payload_type == "message":
+        role = payload.get("role")
+        if role == "user":
+            kind = "user_turn"
+        elif role == "assistant":
+            kind = "assistant_decision_or_message"
+        else:
+            kind = "other"
+    elif payload_type in {"agent_message", "compaction"}:
+        kind = "assistant_decision_or_message"
+    else:
+        kind = "other"
+    _add_timeline_event(state, kind=kind, call_id=safe_call_id, **common)
 
 
 def _process_record(
@@ -1114,6 +1383,8 @@ def _process_record(
     row: dict[str, Any],
     session_id: str,
     timestamp: str,
+    source_key: str,
+    record_index: int,
 ) -> str:
     if row.get("type") == "session_meta" and isinstance(row.get("payload"), dict):
         payload = row["payload"]
@@ -1126,14 +1397,15 @@ def _process_record(
         state.missing_timestamps += 1
     in_window = _within_window(timestamp, state.options)
     if isinstance(payload, dict) and in_window:
-        if row.get("type") == "response_item":
-            _process_call_payload(
-                state,
-                session_id=session_id,
-                timestamp=timestamp,
-                payload=payload,
-            )
-            _process_output_payload(state, session_id=session_id, payload=payload)
+        _emit_record_timeline(
+            state,
+            row=row,
+            payload=payload,
+            source_key=source_key,
+            session_id=session_id,
+            record_index=record_index,
+            timestamp=timestamp,
+        )
     return session_id
 
 
@@ -1204,6 +1476,10 @@ def _read_file(
         return 0
     consumed = 0
     session_id = _session_fallback(path)
+    source_key = hashlib.sha256(
+        f"{category}\0{path.resolve(strict=False)}".encode("utf-8")
+    ).hexdigest()
+    record_index = -1
     try:
         handle = path.open("rb")
     except OSError:
@@ -1216,6 +1492,7 @@ def _read_file(
             if not raw:
                 break
             consumed += len(raw)
+            record_index += 1
             if len(raw) > state.options.max_line_bytes:
                 state.source.oversized_lines += 1
                 while not raw.endswith(b"\n") and consumed < budget:
@@ -1224,6 +1501,14 @@ def _read_file(
                         break
                     consumed += len(extra)
                     raw = extra
+                _add_timeline_event(
+                    state,
+                    source_key=source_key,
+                    session_id=session_id,
+                    record_index=record_index,
+                    timestamp="",
+                    kind="unknown",
+                )
                 continue
             partial = not raw.endswith(b"\n")
             try:
@@ -1232,6 +1517,14 @@ def _read_file(
                 state.source.invalid_utf8 += 1
                 if partial:
                     state.source.partial_trailing_records += 1
+                _add_timeline_event(
+                    state,
+                    source_key=source_key,
+                    session_id=session_id,
+                    record_index=record_index,
+                    timestamp="",
+                    kind="unknown",
+                )
                 continue
             try:
                 row = json.loads(line)
@@ -1239,9 +1532,25 @@ def _read_file(
                 state.source.invalid_json += 1
                 if partial:
                     state.source.partial_trailing_records += 1
+                _add_timeline_event(
+                    state,
+                    source_key=source_key,
+                    session_id=session_id,
+                    record_index=record_index,
+                    timestamp="",
+                    kind="unknown",
+                )
                 continue
             if not isinstance(row, dict):
                 state.source.invalid_json += 1
+                _add_timeline_event(
+                    state,
+                    source_key=source_key,
+                    session_id=session_id,
+                    record_index=record_index,
+                    timestamp="",
+                    kind="unknown",
+                )
                 continue
             state.source.records += 1
             timestamp = row.get("timestamp")
@@ -1251,6 +1560,8 @@ def _read_file(
                 row=row,
                 session_id=session_id,
                 timestamp=timestamp_text,
+                source_key=source_key,
+                record_index=record_index,
             )
         if consumed >= budget:
             try:
@@ -1578,6 +1889,10 @@ def _fingerprint(raw: str, salt: str | None) -> str | None:
 
 def build_report(state: ScanState) -> dict[str, Any]:
     matched_groups, composite_groups = _attach_outputs(state)
+    sequence_analysis = build_sequence_analysis(
+        state.timeline_events,
+        state.calls,
+    )
     family_buckets: dict[str, Bucket] = collections.defaultdict(Bucket)
     shape_buckets: dict[str, Bucket] = collections.defaultdict(Bucket)
     raw_family_counts: collections.Counter[tuple[str, str]] = collections.Counter()
@@ -2140,6 +2455,7 @@ def build_report(state: ScanState) -> dict[str, Any]:
             ),
         },
         "opaque_attribution": attribution,
+        "sequence_analysis": sequence_analysis,
         "terse_adapters": candidate_rows,
         "smallest_safe_initial_set": [
             row["candidate_id"]
@@ -2149,19 +2465,19 @@ def build_report(state: ScanState) -> dict[str, Any]:
         ][:3],
         "methodology": {
             "schema_migration": {
-                "from_version": 1,
-                "to_version": 2,
+                "from_version": 2,
+                "to_version": 3,
                 "compatible_fields": [
                     "coverage.shell_tool_invocations",
                     "coverage.requested_underlying_subcommands",
                     "coverage.matched_shell_invocations",
                     "output_measurement.observed_model_visible_output",
+                    "opaque_attribution",
                 ],
                 "changed_semantics": (
-                    "coverage.opaque_subcommands remains the count without a "
-                    "high-confidence executable attribution, but version 2 splits "
-                    "that count into partial_syntactic and strict opaque forms. "
-                    "Opaque diagnostics and attribution are additive sections."
+                    "Version 3 adds the versioned sequence_analysis section and "
+                    "separate command_sequence_report outputs. Existing schema-v2 "
+                    "metrics retain their established meanings."
                 ),
             },
             "observation_token_estimate": {
@@ -2187,6 +2503,8 @@ def build_report(state: ScanState) -> dict[str, Any]:
             "The analyzer does not execute, replay, upload, or inspect workspace contents.",
             "A syntactic segment is not evidence that the executable ran or produced output.",
             "The batching-pair count is not a claim that those calls could or should be batched.",
+            "Sequence packaging and observed adjacency do not establish hidden model decisions.",
+            "Same-response evidence requires an explicit rollout response_id.",
         ],
     }
     return report
@@ -2602,6 +2920,505 @@ def render_opaque_diagnostics_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def build_sequence_report(report: dict[str, Any]) -> dict[str, Any]:
+    sequence = report["sequence_analysis"]
+    return {
+        "schema_version": sequence["sequence_schema_version"],
+        "parent_schema_version": report["schema_version"],
+        "title": "Codex ordered command-sequence analysis",
+        "privacy": report["privacy"],
+        "analysis_scope": report["analysis_scope"],
+        "sequence_analysis": sequence,
+    }
+
+
+def _sequence_label(row: dict[str, Any]) -> str:
+    return " → ".join(
+        f"`{item['identity']}`" for item in row["sequence"]
+    )
+
+
+def _sequence_mode_sessions(row: dict[str, Any]) -> str:
+    sessions = row["distinct_sessions_by_mode"]
+    return "/".join(
+        _format_int(sessions[name])
+        for name in (
+            "explicit_batch",
+            "separate_direct_calls",
+            "mixed_batch_and_direct",
+            "unknown",
+        )
+    )
+
+
+def _sequence_batched_fraction(row: dict[str, Any]) -> str:
+    denominator = row["batched_fraction_denominator"]
+    if row["batched_fraction"] is None:
+        return f"n/a ({_format_int(denominator)})"
+    return f"{row['batched_fraction']:.1%} ({_format_int(denominator)})"
+
+
+def _sequence_same_response_fraction(row: dict[str, Any]) -> str:
+    count = row["unbatched_same_response_count"]
+    denominator = row["unbatched_same_response_denominator"]
+    if row["unbatched_same_response_fraction"] is None:
+        return f"{_format_int(count)} (n/a/{_format_int(denominator)})"
+    return (
+        f"{_format_int(count)} "
+        f"({row['unbatched_same_response_fraction']:.1%}/"
+        f"{_format_int(denominator)})"
+    )
+
+
+def _sequence_subcommands(row: dict[str, Any]) -> str:
+    return "/".join(
+        _format_int(row[name])
+        for name in (
+            "requested_subcommands",
+            "confirmed_executed_subcommands",
+            "unknown_subcommand_statuses",
+        )
+    )
+
+
+def _sequence_shape_example(row: dict[str, Any]) -> str:
+    examples = row.get("shape_examples", [])
+    if not examples:
+        return "n/a"
+    return " → ".join(
+        f"`{identity}`"
+        for identity in examples[0]["shape_sequence"]
+    )
+
+
+def _sequence_failure_rate(row: dict[str, Any]) -> str:
+    failed = row["observed_status"]["failed"]
+    denominator = failed + row["observed_status"]["success"]
+    if row["failure_rate"] is None:
+        return f"{_format_int(failed)} (n/a/{_format_int(denominator)})"
+    return (
+        f"{_format_int(failed)} "
+        f"({row['failure_rate']:.1%}/{_format_int(denominator)})"
+    )
+
+
+def render_sequence_markdown(report: dict[str, Any]) -> str:
+    sequence = report["sequence_analysis"]
+    coverage = sequence["coverage"]
+    window = report["analysis_scope"]["date_window"]
+    lines = [
+        "# Codex Command Sequence Report",
+        "",
+        "This is a privacy-safe observational summary. Canonical sequence identity "
+        "excludes packaging. Raw commands, arguments, outputs, prompts, paths, and "
+        "session identifiers are not included.",
+        "",
+        "## Scope and evidence",
+        "",
+        f"- Sequence schema: `{sequence['sequence_schema_version']}`; parent report "
+        f"schema: `{report['schema_version']}`",
+        f"- Date window: `{window['since'] or 'unbounded'}` through "
+        f"`{window['until'] or 'unbounded'}` (inclusive)",
+        f"- Source files: {_format_int(coverage['source_files'])}; sessions: "
+        f"{_format_int(coverage['sessions'])}",
+        f"- Timeline events classified: {_format_int(coverage['timeline_events'])}",
+        f"- Response groups observed: "
+        f"{_format_int(coverage['response_groups_observed'])}",
+        f"- Shell invocations linked to timeline: "
+        f"{_format_int(coverage['shell_invocations_with_timeline'])}",
+        f"- Matched shell outputs: "
+        f"{_format_int(coverage['matched_shell_invocations'])}",
+        f"- Invocations excluded from sequences: "
+        f"{_format_int(coverage['shell_invocations_excluded_from_sequences'])} "
+        f"({_format_int(coverage['ambiguous_ordering_invocations_excluded'])} "
+        "ambiguous ordering)",
+        f"- Requested batch subcommands: "
+        f"{_format_int(coverage['requested_batch_subcommands'])}; confirmed executed: "
+        f"{_format_int(coverage['confirmed_executed_batch_subcommands'])}; unknown: "
+        f"{_format_int(coverage['unknown_batch_subcommand_statuses'])}",
+        f"- Direct edges classified: "
+        f"{_format_int(coverage['direct_edges_classified'])}; hard boundaries: "
+        f"{_format_int(coverage['hard_boundaries'])}",
+        f"- Reused session IDs across source files: "
+        f"{_format_int(coverage['reused_session_ids_across_sources'])}",
+        "",
+        "All sequence counts below are overlapping windows. Packaging is shown separately "
+        "and is not part of the canonical identity.",
+        "",
+    ]
+    for granularity in ("family", "shape"):
+        title = "command families" if granularity == "family" else "normalized shapes"
+        lines.extend([f"## Repeated {title}", ""])
+        for length in (2, 3, 4):
+            rows = sequence["ranking"].get(f"{granularity}_{length}", [])
+            lines.extend([f"### Length {length}", ""])
+            if not rows:
+                lines.extend(["No repeated sequence observed.", ""])
+                continue
+            lines.extend(
+                _markdown_table(
+                    [
+                        "Sequence",
+                        "Total",
+                        "Sessions",
+                        "Sessions E/D/M/U",
+                        "Explicit",
+                        "Direct",
+                        "Mixed",
+                        "Unknown",
+                        "Same response (denom)",
+                        "Confirmed occurrences",
+                        "Requested-only occurrences",
+                        "Subcommands req/conf/unknown",
+                        "Matched invocations",
+                        "Batched fraction (denom)",
+                        "Success",
+                        "Failed (rate/known)",
+                        "Unknown status",
+                        "Output bytes",
+                    ],
+                    (
+                        [
+                            _sequence_label(row),
+                            _format_int(row["total"]),
+                            _format_int(row["distinct_sessions"]),
+                            _sequence_mode_sessions(row),
+                            _format_int(row["explicit_batch"]),
+                            _format_int(row["separate_direct_calls"]),
+                            _format_int(row["mixed"]),
+                            _format_int(row["unknown"]),
+                            _sequence_same_response_fraction(row),
+                            _format_int(row["confirmed_executed_occurrences"]),
+                            _format_int(row["requested_only_occurrences"]),
+                            _sequence_subcommands(row),
+                            f"{_format_int(row['matched_invocations'])}/"
+                            f"{_format_int(row['invocation_occurrences'])}",
+                            _sequence_batched_fraction(row),
+                            _format_int(row["observed_status"]["success"]),
+                            _sequence_failure_rate(row),
+                            _format_int(row["observed_status"]["unknown"]),
+                            _format_int(row["exclusive_output_bytes"]),
+                        ]
+                        for row in rows
+                    ),
+                )
+            )
+            lines.append("")
+
+    lines.extend(["## Explicit batch sequences", ""])
+    explicit_rows: list[dict[str, Any]] = []
+    for length in (2, 3, 4):
+        explicit_rows.extend(
+            sequence["explicit_batch_sequences"].get(f"family_{length}", [])
+        )
+    if explicit_rows:
+        lines.extend(
+            _markdown_table(
+                [
+                    "Sequence",
+                    "Explicit",
+                    "Total",
+                    "Sessions",
+                    "Confirmed occurrences",
+                    "Requested-only occurrences",
+                    "Subcommands req/conf/unknown",
+                    "Failed",
+                    "Unknown status",
+                ],
+                (
+                    [
+                        _sequence_label(row),
+                        _format_int(row["explicit_batch"]),
+                        _format_int(row["total"]),
+                        _format_int(row["distinct_sessions"]),
+                        _format_int(row["confirmed_executed_occurrences"]),
+                        _format_int(row["requested_only_occurrences"]),
+                        _sequence_subcommands(row),
+                        _format_int(row["observed_status"]["failed"]),
+                        _format_int(row["observed_status"]["unknown"]),
+                    ]
+                    for row in explicit_rows
+                ),
+            )
+        )
+    else:
+        lines.append("No repeated explicit-batch sequence observed.")
+
+    lines.extend(["", "## Direct-call sequences", ""])
+    direct_rows: list[dict[str, Any]] = []
+    for length in (2, 3, 4):
+        direct_rows.extend(
+            sequence["direct_sequences"].get(f"family_{length}", [])
+        )
+    if direct_rows:
+        lines.extend(
+            _markdown_table(
+                [
+                    "Sequence",
+                    "Direct",
+                    "Total",
+                    "Sessions",
+                    "Same response",
+                    "Matched invocations",
+                    "Subcommands req/conf/unknown",
+                    "Failed",
+                    "Unknown status",
+                ],
+                (
+                    [
+                        _sequence_label(row),
+                        _format_int(row["separate_direct_calls"]),
+                        _format_int(row["total"]),
+                        _format_int(row["distinct_sessions"]),
+                        _format_int(row["same_response_inferred"]),
+                        f"{_format_int(row['matched_invocations'])}/"
+                        f"{_format_int(row['invocation_occurrences'])}",
+                        _sequence_subcommands(row),
+                        _format_int(row["observed_status"]["failed"]),
+                        _format_int(row["observed_status"]["unknown"]),
+                    ]
+                    for row in direct_rows
+                ),
+            )
+        )
+    else:
+        lines.append("No repeated direct-call sequence observed.")
+
+    lines.extend(["## Edge evidence", ""])
+    lines.extend(
+        _markdown_table(
+            ["Intervening class", "Edges"],
+            (
+                [f"`{name}`", _format_int(count)]
+                for name, count in sequence["intervening_event_histogram"].items()
+            ),
+        )
+    )
+    lines.extend(["", "### Response-boundary evidence", ""])
+    lines.extend(
+        _markdown_table(
+            ["Evidence class", "Edges"],
+            (
+                [f"`{name}`", _format_int(count)]
+                for name, count in sequence["response_boundary_evidence"].items()
+            ),
+        )
+    )
+    lines.extend(["", "### Elapsed-time buckets", ""])
+    lines.extend(
+        _markdown_table(
+            ["Bucket", "Edges"],
+            (
+                [f"`{name}`", _format_int(count)]
+                for name, count in sequence["elapsed_time_histogram"].items()
+            ),
+        )
+    )
+    lines.extend(["## Cross-mode repeats", ""])
+    cross_rows: list[dict[str, Any]] = []
+    for length in (2, 3, 4):
+        cross_rows.extend(sequence["cross_mode_repeats"].get(f"family_{length}", []))
+    if cross_rows:
+        lines.extend(
+            _markdown_table(
+                [
+                    "Sequence",
+                    "Total",
+                    "Explicit",
+                    "Direct",
+                    "Mixed",
+                    "Unknown boundaries",
+                    "Session E&D overlap",
+                    "Review category",
+                ],
+                (
+                    [
+                        _sequence_label(row),
+                        _format_int(row["total"]),
+                        _format_int(row["explicit_batch"]),
+                        _format_int(row["separate_direct_calls"]),
+                        _format_int(row["mixed"]),
+                        _format_int(row["unknown"]),
+                        _format_int(
+                            row["within_session_mode_overlap"][
+                                "explicit_and_direct_session_instances"
+                            ]
+                        ),
+                        f"`{row['candidate_category']}`",
+                    ]
+                    for row in cross_rows
+                ),
+            )
+        )
+    else:
+        lines.append("No repeated family sequence occurred in both explicit and direct modes.")
+    lines.extend(
+        [
+            "",
+            "Cross-mode evidence does not show that an unbatched occurrence was safe to batch.",
+            "",
+        ]
+    )
+
+    lines.extend(["## Same-response cross-mode repeats", ""])
+    same_response_rows: list[dict[str, Any]] = []
+    for length in (2, 3, 4):
+        same_response_rows.extend(
+            sequence["cross_mode_same_response_repeats"].get(
+                f"family_{length}", []
+            )
+        )
+    if same_response_rows:
+        lines.extend(
+            _markdown_table(
+                [
+                    "Sequence",
+                    "Total",
+                    "Explicit",
+                    "Same response direct",
+                    "Subcommands req/conf/unknown",
+                    "Session E&D overlap",
+                ],
+                (
+                    [
+                        _sequence_label(row),
+                        _format_int(row["total"]),
+                        _format_int(row["explicit_batch"]),
+                        _format_int(row["unbatched_same_response_count"]),
+                        _sequence_subcommands(row),
+                        _format_int(
+                            row["within_session_mode_overlap"][
+                                "explicit_and_direct_session_instances"
+                            ]
+                        ),
+                    ]
+                    for row in same_response_rows
+                ),
+            )
+        )
+    else:
+        lines.append(
+            "No repeated family sequence occurred in both explicit and "
+            "same-response direct contexts."
+        )
+
+    lines.extend(["", "## Observed command transitions", ""])
+    transition_rows = sequence["transitions"]["rows"][:15]
+    if transition_rows:
+        lines.extend(
+            _markdown_table(
+                [
+                    "First",
+                    "Next",
+                    "Count",
+                    "Follow rate (denom)",
+                    "Sessions",
+                    "Next output bytes",
+                ],
+                (
+                    [
+                        f"`{row['first']}`",
+                        f"`{row['second']}`",
+                        _format_int(row["count"]),
+                        f"{row['conditional_follow_rate']:.1%} "
+                        f"({_format_int(row['denominator'])})",
+                        _format_int(row["distinct_sessions"]),
+                        _format_int(row["next_command_exclusive_output_bytes"]),
+                    ]
+                    for row in transition_rows
+                ),
+            )
+        )
+    else:
+        lines.append("No observed command transition.")
+
+    high_output_rows = sequence["transitions"]["low_frequency_high_output_rows"]
+    if high_output_rows:
+        lines.extend(["", "### Low-frequency high-output transitions", ""])
+        lines.extend(
+            _markdown_table(
+                [
+                    "First",
+                    "Next",
+                    "Count",
+                    "Next output bytes",
+                    "Mean next output bytes",
+                ],
+                (
+                    [
+                        f"`{row['first']}`",
+                        f"`{row['second']}`",
+                        _format_int(row["count"]),
+                        _format_int(row["next_command_exclusive_output_bytes"]),
+                        _format_int(row["mean_next_command_output_bytes"]),
+                    ]
+                    for row in high_output_rows
+                ),
+            )
+        )
+    lines.append(
+        "Follow rates describe observed physical transitions only and do not "
+        "establish batch safety."
+    )
+    lines.extend(
+        [
+            "",
+            "## Conservative batching candidates",
+            "",
+        ]
+    )
+    candidates = sequence["batching_candidates"]
+    if candidates:
+        lines.extend(
+            _markdown_table(
+                [
+                    "Sequence",
+                    "Sanitized shape sample",
+                    "Category",
+                    "Total",
+                    "Explicit",
+                    "Direct",
+                    "Failed",
+                    "Unknown status",
+                ],
+                (
+                    [
+                        " → ".join(f"`{value}`" for value in row["sequence"]),
+                        _sequence_shape_example(row),
+                        f"`{row['category']}`",
+                        _format_int(row["total_occurrences"]),
+                        _format_int(row["explicit_batch"]),
+                        _format_int(row["separate_direct_calls"]),
+                        _format_int(row["failure_count"]),
+                        _format_int(row["unknown_status_count"]),
+                    ]
+                    for row in candidates
+                ),
+            )
+        )
+    else:
+        lines.append("No repeated candidate sequence observed.")
+    lines.extend(
+        [
+            "",
+            "## Boundaries and limitations",
+            "",
+            "- Physical JSONL order separates sources; files are never joined by timestamp.",
+            "- Same-response evidence uses a following `token_usage_record.response_id`.",
+            "- Output-only interruptions remain eligible but are labeled separately.",
+            "- Assistant reasoning or messages, edits, other tools, and user/turn boundaries "
+            "are preserved as intervening evidence.",
+            "- Custom exec bundles with multiple shell calls are excluded as ambiguously ordered.",
+            "- Compound shell expressions remain one invocation; syntactic segments are not "
+            "promoted to sequence atoms.",
+            "- Overlapping n-grams are windows, not independent observations.",
+            "- Batch output is not attributed to individual subcommands.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _validate_output_dir(path: Path) -> None:
     if path.exists() and path.is_symlink():
         raise AnalysisError("output directory may not be a symlink")
@@ -2611,7 +3428,7 @@ def _validate_output_dir(path: Path) -> None:
 
 def write_reports(
     report: dict[str, Any], output_dir: Path
-) -> tuple[Path, Path, Path, Path]:
+) -> tuple[Path, Path, Path, Path, Path, Path]:
     _validate_output_dir(output_dir)
     output_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     try:
@@ -2622,6 +3439,8 @@ def write_reports(
     json_path = output_dir / "command_frequency_report.json"
     diagnostics_markdown_path = output_dir / "opaque_command_diagnostics.md"
     diagnostics_json_path = output_dir / "opaque_command_diagnostics.json"
+    sequence_markdown_path = output_dir / "command_sequence_report.md"
+    sequence_json_path = output_dir / "command_sequence_report.json"
     markdown = render_markdown(report).encode("utf-8")
     machine = (json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
     diagnostics = build_opaque_diagnostics(report)
@@ -2629,11 +3448,18 @@ def write_reports(
     diagnostics_machine = (
         json.dumps(diagnostics, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     ).encode("utf-8")
+    sequence = build_sequence_report(report)
+    sequence_markdown = render_sequence_markdown(report).encode("utf-8")
+    sequence_machine = (
+        json.dumps(sequence, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
     for target, content in (
         (markdown_path, markdown),
         (json_path, machine),
         (diagnostics_markdown_path, diagnostics_markdown),
         (diagnostics_json_path, diagnostics_machine),
+        (sequence_markdown_path, sequence_markdown),
+        (sequence_json_path, sequence_machine),
     ):
         if target.is_symlink():
             raise AnalysisError("report target may not be a symlink")
@@ -2661,6 +3487,8 @@ def write_reports(
         json_path,
         diagnostics_markdown_path,
         diagnostics_json_path,
+        sequence_markdown_path,
+        sequence_json_path,
     )
 
 
@@ -2724,9 +3552,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         state = scan_rollouts(options)
         report = build_report(state)
-        markdown_path, json_path, diagnostics_markdown_path, diagnostics_json_path = (
-            write_reports(report, options.output_dir)
-        )
+        (
+            markdown_path,
+            json_path,
+            diagnostics_markdown_path,
+            diagnostics_json_path,
+            sequence_markdown_path,
+            sequence_json_path,
+        ) = write_reports(report, options.output_dir)
     except (AnalysisError, OSError) as exc:
         print(f"analyze_codex_commands: {exc}", file=sys.stderr)
         return 2
@@ -2741,6 +3574,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"JSON: {json_path}")
     print(f"Diagnostics Markdown: {diagnostics_markdown_path}")
     print(f"Diagnostics JSON: {diagnostics_json_path}")
+    print(f"Sequence Markdown: {sequence_markdown_path}")
+    print(f"Sequence JSON: {sequence_json_path}")
     return 0
 
 
