@@ -92,6 +92,8 @@ The analyzer writes schema-versioned command reports plus private `opaque_comman
 
 The reviewed schema-v2 aggregate report is available in [command_frequency_report.md](command_frequency_report.md) and [command_frequency_report.json](command_frequency_report.json). Detailed sanitized reason and syntax diagnostics are in [opaque_command_diagnostics.md](opaque_command_diagnostics.md) and [opaque_command_diagnostics.json](opaque_command_diagnostics.json).
 
+The reviewed bounded sequence study for 2026-10-29 through 2026-11-01 is available in [command_sequence_report.md](command_sequence_report.md) and [command_sequence_report.json](command_sequence_report.json). It covers six source files and three sessions; the bounded sample contained no explicit batch subcommands, so it does not establish a batched-versus-unbatched incidence rate.
+
 ## Research
 
 [REPORT.md](REPORT.md) summarizes the 72-run Go/Rust and 216-run Python/TypeScript/JavaScript comparisons (288 assignments total). These are descriptive studies rather than proof of universal cost savings, speed gains, or code-quality equivalence. Raw artifacts and private environments are deliberately not published in this repository.
