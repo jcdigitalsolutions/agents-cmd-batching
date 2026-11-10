@@ -60,7 +60,7 @@ class SequenceConfig:
     timeout: float = DEFAULT_TIMEOUT
     quiet_paths: tuple[str, ...] = ()
     dry_run: bool = False
-    last_output_only: bool = False
+    last_output_only: bool = True
 
     def validate(self) -> None:
         values = {
@@ -602,14 +602,23 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="validate timing and print commands without executing them",
     )
-    parser.add_argument(
+    output_mode = parser.add_mutually_exclusive_group()
+    output_mode.add_argument(
         "--last-output-only",
         action="store_true",
         help=(
-            "show output from only the last executed command; failing command "
-            "output is always shown"
+            "show output from only the last executed command (default); "
+            "failing command output is always shown"
         ),
     )
+    output_mode.add_argument(
+        "--all-output",
+        "--verbose",
+        dest="last_output_only",
+        action="store_false",
+        help="show output from every executed command",
+    )
+    parser.set_defaults(last_output_only=True)
     parser.add_argument(
         "commands",
         nargs="+",

@@ -57,8 +57,26 @@ def test_last_output_mode_shows_only_final_stdout_and_stderr(tmp_path):
     assert b"completed: 3 command(s)" in result.stderr
 
 
-def test_default_mode_remains_fully_verbose(tmp_path):
-    result = run_wrapper(tmp_path, "printf first", "printf second")
+def test_default_mode_shows_only_final_command_output(tmp_path):
+    result = run_wrapper(
+        tmp_path,
+        "printf first; printf first-err >&2",
+        "printf second; printf second-err >&2",
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == b"second"
+    assert b"first-err" not in result.stderr
+    assert b"second-err" in result.stderr
+
+
+def test_all_output_flag_preserves_fully_verbose_mode(tmp_path):
+    result = run_wrapper(
+        tmp_path,
+        "printf first",
+        "printf second",
+        flags=("--all-output",),
+    )
 
     assert result.returncode == 0
     assert result.stdout == b"firstsecond"
@@ -149,7 +167,7 @@ def test_quiet_path_alias_remains_independent_from_output_mode(tmp_path):
         tmp_path,
         "printf first",
         "printf second",
-        flags=("--quiet", "source.py", "--quiet-window", "0"),
+        flags=("--quiet", "source.py", "--quiet-window", "0", "--all-output"),
     )
 
     assert result.returncode == 0

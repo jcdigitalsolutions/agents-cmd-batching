@@ -69,14 +69,14 @@ delayed-seq --initial-delay 0 --dry-run -- 'python -m pytest -q' 'echo done'
 
 Optional source quiet checks: `--quiet-path src --quiet-window 30 --quiet-timeout 60`. This checks for an unchanged observed set of files; **it does not prove that edits completed successfully**. Start validation only after the editing operation has explicitly succeeded.
 
-The proxy may pass the separate `--last-output-only` option to show output
-only from the last executed command. This is not the same as `--quiet` /
-`--quiet-path`: those options wait for source files to stop changing. Direct
-wrapper callers remain fully verbose by default. With output-only mode, a
-failing, timed-out, or cancelled command's captured output is always shown.
-Captured bytes are spooled to private temporary files and copied to the matching
-stdout/stderr streams; relative ordering between the two streams is not
-preserved.
+The wrapper shows only the last executed command's output by default. Pass
+`--all-output` (or `--verbose`) to show output from every command;
+`--last-output-only` remains accepted for explicit quiet mode. This is not the
+same as `--quiet` / `--quiet-path`: those options wait for source files to stop
+changing. In output-only mode, a failing, timed-out, or cancelled command's
+captured output is always shown. Captured bytes are spooled to private
+temporary files and copied to the matching stdout/stderr streams; relative
+ordering between the two streams is not preserved.
 
 ## When agents should use it
 
