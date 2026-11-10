@@ -15,11 +15,12 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import BinaryIO, Callable, Sequence
 
 DEFAULT_INITIAL_DELAY = 5.0
 DEFAULT_QUIET_WINDOW = 30.0
@@ -59,6 +60,7 @@ class SequenceConfig:
     timeout: float = DEFAULT_TIMEOUT
     quiet_paths: tuple[str, ...] = ()
     dry_run: bool = False
+    last_output_only: bool = False
 
     def validate(self) -> None:
         values = {
@@ -89,6 +91,25 @@ class SequenceResult:
     failed_command_index: int | None = None
     error: str | None = None
     quiet_wait_ms: int | None = None
+
+
+@dataclass
+class CommandExecution:
+    """A command result with stdout/stderr retained in private temporary files."""
+
+    exit_code: int
+    stdout: BinaryIO
+    stderr: BinaryIO
+
+    def forward(self, stdout: BinaryIO, stderr: BinaryIO) -> None:
+        for source, destination in ((self.stdout, stdout), (self.stderr, stderr)):
+            source.seek(0)
+            shutil.copyfileobj(source, destination, length=64 * 1024)
+            destination.flush()
+
+    def close(self) -> None:
+        self.stdout.close()
+        self.stderr.close()
 
 
 @dataclass
@@ -139,12 +160,29 @@ class ShellCommandRunner:
         except ProcessLookupError:
             pass
 
-    def run(self, command: str, timeout: float) -> int:
+    def run(
+        self,
+        command: str,
+        timeout: float,
+        *,
+        capture_output: bool = False,
+    ) -> int | CommandExecution:
         if self.cancellation.is_set():
             return 128 + (self.signal_number or signal.SIGINT)
         shell = shutil.which("sh")
         if shell is None:
             raise WrapperError("a POSIX-compatible shell is not available")
+        stdout_spool: BinaryIO | None = None
+        stderr_spool: BinaryIO | None = None
+        try:
+            stdout_spool = tempfile.TemporaryFile(mode="w+b") if capture_output else None
+            stderr_spool = tempfile.TemporaryFile(mode="w+b") if capture_output else None
+        except OSError as exc:
+            if stdout_spool is not None:
+                stdout_spool.close()
+            if stderr_spool is not None:
+                stderr_spool.close()
+            raise WrapperError(f"cannot capture command output: {exc}") from exc
         try:
             process = subprocess.Popen(
                 command,
@@ -152,32 +190,55 @@ class ShellCommandRunner:
                 shell=True,
                 executable=shell,
                 stdin=subprocess.DEVNULL,
+                stdout=stdout_spool,
+                stderr=stderr_spool,
                 start_new_session=os.name == "posix",
             )
         except OSError as exc:
+            if stdout_spool is not None:
+                stdout_spool.close()
+            if stderr_spool is not None:
+                stderr_spool.close()
             raise WrapperError(f"cannot start command: {exc}") from exc
         self._process = process
         deadline = time.monotonic() + timeout
+
+        def result(exit_code: int) -> int | CommandExecution:
+            nonlocal stdout_spool, stderr_spool
+            if stdout_spool is None or stderr_spool is None:
+                return exit_code
+            execution = CommandExecution(exit_code, stdout_spool, stderr_spool)
+            stdout_spool = None
+            stderr_spool = None
+            return execution
+
         try:
             while process.poll() is None:
                 if self.cancellation.is_set():
                     signum = self.signal_number or signal.SIGTERM
                     self.forward_signal(signum)
-                    return self._finish_after_signal(process, signum)
+                    return result(self._finish_after_signal(process, signum))
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     self._terminate(process)
-                    return EXIT_TIMEOUT
+                    return result(EXIT_TIMEOUT)
                 try:
-                    return process.wait(timeout=min(0.1, remaining))
+                    returncode = process.wait(timeout=min(0.1, remaining))
+                    return result(
+                        returncode if returncode >= 0 else 128 - returncode
+                    )
                 except subprocess.TimeoutExpired:
                     continue
             returncode = process.returncode
             if returncode is None:
-                return 1
-            return returncode if returncode >= 0 else 128 - returncode
+                return result(1)
+            return result(returncode if returncode >= 0 else 128 - returncode)
         finally:
             self._process = None
+            if stdout_spool is not None:
+                stdout_spool.close()
+            if stderr_spool is not None:
+                stderr_spool.close()
 
     def _finish_after_signal(
         self,
@@ -310,13 +371,15 @@ def run_sequence(
     commands: Sequence[str],
     config: SequenceConfig,
     *,
-    command_runner: Callable[[str, float], int],
+    command_runner: Callable[[str, float], int | CommandExecution],
     cancellation: threading.Event | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wall_clock: Callable[[], float] = time.time,
     sleeper: Callable[[float], None] = time.sleep,
     waiter: Callable[[float], bool] | None = None,
     emit: Callable[[str], None] | None = None,
+    stdout: BinaryIO | None = None,
+    stderr: BinaryIO | None = None,
 ) -> SequenceResult:
     config.validate()
     if not commands:
@@ -328,9 +391,30 @@ def run_sequence(
             raise WrapperError(f"command {index} contains a NUL byte")
     event = cancellation or threading.Event()
     output = emit or (lambda message: print(message, file=sys.stderr, flush=True))
+    stdout_stream = stdout or getattr(sys.stdout, "buffer", sys.stdout)
+    stderr_stream = stderr or getattr(sys.stderr, "buffer", sys.stderr)
     wait = waiter or event.wait
     started = monotonic()
     deadline = started + config.timeout
+    last_execution: CommandExecution | None = None
+
+    def close_last_execution() -> None:
+        nonlocal last_execution
+        if last_execution is not None:
+            last_execution.close()
+            last_execution = None
+
+    def forward_execution(execution: CommandExecution | None) -> bool:
+        if execution is None:
+            return True
+        try:
+            execution.forward(stdout_stream, stderr_stream)
+            return True
+        except (BrokenPipeError, OSError) as exc:
+            output(f"[delayed-seq] cannot forward captured output: {exc}")
+            return False
+        finally:
+            execution.close()
 
     remaining = deadline - monotonic()
     if config.initial_delay > 0:
@@ -402,6 +486,9 @@ def run_sequence(
         output(f"{prefix}: running")
         remaining = deadline - monotonic()
         if remaining <= 0 or wait(0):
+            if config.last_output_only:
+                forward_execution(last_execution)
+                last_execution = None
             return SequenceResult(
                 exit_code=EXIT_TIMEOUT if not event.is_set() else 130,
                 executed=index - 1,
@@ -409,9 +496,38 @@ def run_sequence(
                 error="deadline expired before command",
                 quiet_wait_ms=quiet_wait_ms,
             )
-        exit_code = command_runner(command, remaining)
+        try:
+            execution = command_runner(command, remaining)
+        except WrapperError as exc:
+            output(f"{prefix}: failed to start: {exc}")
+            if config.last_output_only:
+                forward_execution(last_execution)
+                last_execution = None
+            return SequenceResult(
+                exit_code=2,
+                executed=index - 1,
+                state="failed",
+                failed_command_index=index,
+                error=f"command {index} could not start: {exc}",
+                quiet_wait_ms=quiet_wait_ms,
+            )
+        exit_code = (
+            execution.exit_code
+            if isinstance(execution, CommandExecution)
+            else execution
+        )
+        if config.last_output_only and isinstance(execution, CommandExecution):
+            close_last_execution()
+            last_execution = execution
+        elif config.last_output_only and not event.is_set():
+            # Injected runners that do not capture bytes must not cause a
+            # previous command's output to masquerade as this command's output.
+            close_last_execution()
         if exit_code != 0:
             output(f"{prefix}: failed with status {exit_code}")
+            if config.last_output_only:
+                forward_execution(last_execution)
+                last_execution = None
             return SequenceResult(
                 exit_code=exit_code,
                 executed=index,
@@ -421,6 +537,17 @@ def run_sequence(
                 quiet_wait_ms=quiet_wait_ms,
             )
         output(f"{prefix}: succeeded")
+    if config.last_output_only:
+        if not forward_execution(last_execution):
+            last_execution = None
+            return SequenceResult(
+                exit_code=1,
+                executed=len(commands),
+                state="failed",
+                error="could not forward captured command output",
+                quiet_wait_ms=quiet_wait_ms,
+            )
+        last_execution = None
     output(f"[delayed-seq] completed: {len(commands)} command(s)")
     return SequenceResult(
         exit_code=0,
@@ -476,6 +603,14 @@ def _parser() -> argparse.ArgumentParser:
         help="validate timing and print commands without executing them",
     )
     parser.add_argument(
+        "--last-output-only",
+        action="store_true",
+        help=(
+            "show output from only the last executed command; failing command "
+            "output is always shown"
+        ),
+    )
+    parser.add_argument(
         "commands",
         nargs="+",
         metavar="COMMAND",
@@ -511,8 +646,11 @@ def main(argv: list[str] | None = None) -> int:
                 timeout=args.timeout,
                 quiet_paths=tuple(args.quiet_paths),
                 dry_run=args.dry_run,
+                last_output_only=args.last_output_only,
             ),
-            command_runner=runner.run,
+            command_runner=lambda command, timeout: runner.run(
+                command, timeout, capture_output=args.last_output_only
+            ),
             cancellation=cancellation,
         )
         if cancellation.is_set() and runner.signal_number is not None:
